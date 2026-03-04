@@ -1,5 +1,5 @@
 /**
- * CF-Proxy: 通用代理服务 (极简优雅终极版)
+ * CF-Proxy: 通用代理服务，基于 Cloudflare Workers 实现的无服务器代理加速解决方案，支持访问被墙或受限的 URL。
  * Repo: https://github.com/sinspired/CF-Proxy
  */
 
@@ -158,13 +158,13 @@ function getHtml(host) {
     <title>${SITE_NAME}</title>
     <style>
         :root {
-            --primary: #000000; --bg: #ffffff; --text: #111111; --text-light: #888888; --line: #eaeaea;
+            --primary: #000000; --bg: #ffffff; --text: #111111; --text-light: #888888; --line: #c9c9c9;
             --capsule-bg: rgba(0,0,0,0.04); --success: #10b981; --error: #ef4444; --warn: #f59e0b;
         }
         @media (prefers-color-scheme: dark) {
             :root { 
                 --primary: #ffffff; --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666; 
-                --line: rgba(255, 255, 255, 0.15); 
+                --line: rgba(255, 255, 255, 0.29); 
                 --capsule-bg: rgba(255,255,255,0.08); 
             }
         }
@@ -175,7 +175,7 @@ function getHtml(host) {
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg); color: var(--text);
-            /* 采用 100dvh 完美适配 Safari 底部地址栏伸缩 */
+            /* 采用 100dvh 适配 Safari 底部地址栏伸缩 */
             min-height: 100vh; min-height: 100dvh; 
             display: flex; flex-direction: column;
             transition: background 0.4s ease;
@@ -187,7 +187,7 @@ function getHtml(host) {
             padding: 20px 24px 80px; animation: fadeIn 0.8s ease forwards;
         }
 
-        .logo-svg { width: 42px; height: 42px; color: var(--primary); margin-bottom: 1.2rem; }
+        .logo-svg { width: 60px; height: 60px; color: var(--primary); margin-bottom: 1.2rem; }
         
         h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em; transition: font-size 0.3s ease; }
         .tagline { color: var(--text-light); font-size: 1.05rem; margin-bottom: 4rem; letter-spacing: -0.01em; transition: font-size 0.3s ease;}
@@ -223,11 +223,11 @@ function getHtml(host) {
             font-size: 13px; font-weight: 500;
         }
         .transit-capsule.active { width: 76px; opacity: 1; overflow: visible; }
-        .capsule-text { white-space: nowrap; }
+        .capsule-text { white-space: nowrap; display: none;}
 
         /* 分割线 */
         .divider {
-            width: 1px; height: 16px; background-color: var(--line); border-radius: 1px;
+            width: 2px; height: 16px; background-color: var(--line); border-radius: 1px;
             margin: 0; opacity: 0; transform: scaleY(0.2); 
             transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -287,7 +287,7 @@ function getHtml(host) {
 
         /* 大屏优化 */
         @media (min-width: 1024px) {
-            .main-container { max-width: 680px; }
+            .main-container { max-width: 800px; }
             h1 { font-size: 2.8rem; }
             .tagline { font-size: 1.15rem; }
             .input-field { font-size: 1.25rem; }
@@ -341,14 +341,14 @@ function getHtml(host) {
 
             <button type="submit" id="mainBtn" class="submit-btn">
                 <span id="dot" class="status-dot"></span>
-                <span id="btnText">代理访问</span>
+                <span id="btnText">加速访问</span>
             </button>
         </form>
     </div>
 
     <footer>
         <p>Project <a href="${REPO_URL}" target="_blank">CF-Proxy</a> by <a href="https://github.com/sinspired" target="_blank">sinspired</a></p>
-        <p class="disclaimer">仅供技术研究与合法用途使用，请勿用于非法行为。</p>
+        <p class="disclaimer">仅供技术研究与合法用途使用，请勿用于非法行为</p>
     </footer>
 
     <script>
@@ -364,7 +364,7 @@ function getHtml(host) {
         const el = (id) => document.getElementById(id);
         
         const setUI = (state, hintHTML, hintClass = 'input-hint') => {
-            // 【核心修改】只在云端确实解析成功（或允许放行）时，才展现左侧胶囊和右侧复制按钮
+            // 只在云端确实解析成功（或允许放行）时，才展现左侧胶囊和右侧复制按钮
             const isResolved = state === 'ok' || state === 'fail-bypass';
             
             el('capsule').classList.toggle('active', isResolved);
@@ -389,7 +389,7 @@ function getHtml(host) {
             // 智能识别文件下载链接
             const cleanPath = val.split('?')[0].split('#')[0];
             const isDownload = /\\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
-            el('btnText').textContent = isDownload ? '代理下载' : '代理访问';
+            el('btnText').textContent = isDownload ? '加速下载' : '加速访问';
 
             if (!val) {
                 lastDomain = ''; lastStatus = 0;
@@ -408,7 +408,7 @@ function getHtml(host) {
                 if (domain === lastDomain && lastStatus !== 0) return; 
 
                 lastDomain = domain; lastStatus = 0;
-                setUI('checking', '<span>正在由云端解析验证...</span>');
+                setUI('checking', '<span>正在由云端解析验证网址...</span>');
                 
                 clearTimeout(dnsTimer);
                 dnsTimer = setTimeout(() => verifyDomain(domain), 400);
