@@ -31,7 +31,7 @@
 ## 📸 预览
 
 <div align="center">
-  <img src="preview.jpg" alt="App Screenshot" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+  <img src="preview.png" alt="App Screenshot" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
   <br>
 </div>
 
@@ -94,13 +94,13 @@ wrangler dev
 - **完整协议**:
 
     ```text
-    https://your-worker.dev/https://www.google.com
+    https://your-worker.dev/https://github.com/sinspired/subs-check-pro
     ```
 
 - **智能补全**:
 
     ```text
-    https://your-worker.dev/www.google.com
+    https://your-worker.dev/github.com/sinspired/subs-check-pro
     ```
 
 ### 3. API 调用

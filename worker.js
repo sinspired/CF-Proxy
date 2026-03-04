@@ -28,10 +28,10 @@ async function handleRequest(request) {
         });
     }
 
-    // 拦截 /preview.jpg 请求，返回 GitHub 上的预览图
-    if (url.pathname === '/preview.jpg') {
+    // 拦截 /preview.png 请求，返回 GitHub 上的预览图
+    if (url.pathname === '/preview.png') {
         // 这里指向 GitHub 的 Raw 地址
-        return fetch(`${RAW_URL}/preview.jpg`);
+        return fetch(`${RAW_URL}/preview.png`);
     }
 
     // 3. 代理逻辑
@@ -150,7 +150,7 @@ function getHtml(host) {
     <meta property="og:title" content="${SITE_NAME} - Proxy Everything">
     <meta property="og:description" content="跨越边界，访问任意 URL。基于 Cloudflare 边缘网络的极速代理体验。">
     <!-- 如果你有 jpg 格式的预览图，可以在这里填入链接，否则大多数平台会尝试抓取页面内容 -->
-    <!-- <meta property="og:image" content="https://${host}/${RAW_URL}/preview.jpg"> -->
+    <!-- <meta property="og:image" content="https://${host}/${RAW_URL}/preview.png"> -->
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
@@ -348,7 +348,7 @@ function getHtml(host) {
                     autocomplete="off" 
                     autofocus
                 >
-                <div class="input-hint">支持完整 URL 或域名 (如 google.com)</div>
+                <div class="input-hint">支持完整 URL 或域名 (如 github.com/sinspired)</div>
             </div>
 
             <button type="submit" class="btn-go">
@@ -358,7 +358,7 @@ function getHtml(host) {
 
         <footer>
             <p>
-                Project <a href="${REPO_URL}" target="_blank">CF-Proxy</a> by sinspired
+                Project <a href="${REPO_URL}" target="_blank">CF-Proxy</a> by <a href="https://github.com/sinspired" target="_blank">sinspired</a>
             </p>
             <p class="disclaimer">
                 仅供技术研究与合法用途使用，请勿用于非法行为。
