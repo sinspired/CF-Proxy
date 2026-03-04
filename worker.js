@@ -277,7 +277,7 @@ function getHtml(host) {
         footer { padding: 30px 20px; font-size: 0.75rem; color: var(--text-light); text-align: center; }
         footer a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--text-light); transition: opacity 0.2s; }
         footer a:hover { opacity: 0.7; }
-        .disclaimer { margin-top: 8px; opacity: 0.6; }
+        .disclaimer { margin-top: 8px; opacity: 0.7; }
 
         /* 大屏优化 */
         @media (min-width: 1024px) {
