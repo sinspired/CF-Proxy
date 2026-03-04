@@ -29,13 +29,13 @@ async function handleRequest(request) {
         try {
             const hostname = domain.split(':')[0]; // 剥离端口号
             const headers = { 'accept': 'application/dns-json' };
-            
+
             // 并发查询 A 记录 (IPv4) 和 AAAA 记录 (IPv6)
-            const[ipv4Resp, ipv6Resp] = await Promise.all([
+            const [ipv4Resp, ipv6Resp] = await Promise.all([
                 fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=A`, { headers }),
                 fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=AAAA`, { headers })
             ]);
-            
+
             const ipv4 = await ipv4Resp.json();
             const ipv6 = await ipv6Resp.json();
 
@@ -49,13 +49,13 @@ async function handleRequest(request) {
                 });
             } else {
                 // 如果没有返回任何 IP 记录，视同 NXDOMAIN 失败处理
-                return new Response(JSON.stringify({ Status: 3 }), { 
+                return new Response(JSON.stringify({ Status: 3 }), {
                     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
                 });
             }
         } catch (e) {
-            return new Response(JSON.stringify({ Status: -1, error: e.message }), { 
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } 
+            return new Response(JSON.stringify({ Status: -1, error: e.message }), {
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
         }
     }
@@ -77,7 +77,8 @@ async function handleRequest(request) {
         newHeaders.set('Referer', targetUrl.origin);
         newHeaders.set('Origin', targetUrl.origin);
 
-        // 清理 CF 特有追踪头部['cf-connecting-ip', 'cf-ipcountry', 'x-forwarded-for', 'x-real-ip'].forEach(h => newHeaders.delete(h));
+        // 清理 CF 特有追踪头部
+        ['cf-connecting-ip', 'cf-ipcountry', 'x-forwarded-for', 'x-real-ip'].forEach(h => newHeaders.delete(h));
 
         const response = await fetch(new Request(targetUrl.toString(), {
             headers: newHeaders,
@@ -222,7 +223,7 @@ function getHtml(host) {
             cursor: help; color: var(--text-light); position: relative;
             font-size: 13px; font-weight: 500;
         }
-        .transit-capsule.active { width: 76px; opacity: 1; overflow: visible; }
+        .transit-capsule.active { width: 36px; opacity: 1; overflow: visible; }
         .capsule-text { white-space: nowrap; display: none;}
 
         /* 分割线 */
