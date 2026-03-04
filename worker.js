@@ -21,7 +21,32 @@ async function handleRequest(request) {
         return new Response(getLogoSvg(), { headers: { 'Content-Type': 'image/svg+xml' } });
     }
 
-    // 2. 代理逻辑解析
+    // 2. 内部 API: 服务端代为执行网络连通性验证 (避免前端因 CORS 或本地 DNS 污染导致验证失败)
+    if (url.pathname === '/__proxy_check') {
+        const domain = url.searchParams.get('domain');
+        if (!domain) return new Response(JSON.stringify({ Status: -1, msg: 'Missing domain' }), { status: 400 });
+
+        try {
+            // 剥离可能存在的端口号，获取纯主机名
+            const hostname = domain.split(':')[0];
+            
+            // 由 Cloudflare 服务端直接发起 DNS 解析
+            const dnsResp = await fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=A`, { 
+                headers: { 'accept': 'application/dns-json' } 
+            });
+            const dnsData = await dnsResp.json();
+            
+            return new Response(JSON.stringify({ Status: dnsData.Status }), {
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+        } catch (e) {
+            return new Response(JSON.stringify({ Status: -1, error: e.message }), { 
+                headers: { 'Content-Type': 'application/json' } 
+            });
+        }
+    }
+
+    // 3. 代理逻辑解析
     let actualUrlStr = url.pathname.slice(1) + url.search;
     if (!actualUrlStr.startsWith('http')) {
         if (actualUrlStr.includes('.') && !actualUrlStr.startsWith('favicon')) {
@@ -125,12 +150,11 @@ function getHtml(host) {
         @media (prefers-color-scheme: dark) {
             :root { 
                 --primary: #ffffff; --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666; 
-                --line: rgba(255, 255, 255, 0.15); /* 提亮深色模式下的底边框 */
+                --line: rgba(255, 255, 255, 0.15); 
                 --capsule-bg: rgba(255,255,255,0.08); 
             }
         }
 
-        /* 增加 overflow-x: hidden 防止小屏手机左右滑动 */
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body { overflow-x: hidden; } 
         
@@ -162,7 +186,7 @@ function getHtml(host) {
         .input-group:focus-within { border-color: var(--primary); }
         .input-wrapper { flex: 1; position: relative; display: flex; align-items: center; min-width: 0; }
 
-        /* 状态提示文字 (引入 SVG flex 布局) */
+        /* 状态提示文字 */
         .input-hint {
             position: absolute; top: calc(100% + 12px); left: 0;
             font-size: 0.8rem; color: var(--text-light);
@@ -185,7 +209,7 @@ function getHtml(host) {
         .transit-capsule.active { width: 76px; opacity: 1; overflow: visible; }
         .capsule-text { white-space: nowrap; }
 
-        /* 优雅分割线 */
+        /* 分割线 */
         .divider {
             width: 1px; height: 16px; background-color: var(--line); border-radius: 1px;
             margin: 0; opacity: 0; transform: scaleY(0.2); 
@@ -204,7 +228,6 @@ function getHtml(host) {
         .transit-capsule:hover .tooltip, .copy-btn:hover .tooltip { opacity: 1; transform: translate(-50%, -12px) scale(1); }
         .tooltip::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:4px solid transparent; border-top-color:var(--text); }
 
-        /* min-width: 0 防止 Flex 子元素溢出 */
         .input-field {
             width: 100%; min-width: 0; background: transparent; border: none; outline: none;
             padding: 4px 0; font-size: 1.15rem; color: var(--text);
@@ -241,14 +264,12 @@ function getHtml(host) {
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 沉底页脚 */
         footer { padding: 30px 20px; font-size: 0.75rem; color: var(--text-light); text-align: center; }
         footer a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--text-light); transition: opacity 0.2s; }
         footer a:hover { opacity: 0.7; }
         .disclaimer { margin-top: 8px; opacity: 0.6; }
 
-        /* --- 响应式适配 --- */
-        /* 大屏优化：等比放大，避免空旷 */
+        /* 大屏优化 */
         @media (min-width: 1024px) {
             .main-container { max-width: 680px; }
             h1 { font-size: 2.8rem; }
@@ -326,7 +347,6 @@ function getHtml(host) {
 
         const el = (id) => document.getElementById(id);
         
-        // 渲染 UI 状态
         const setUI = (state, hintHTML, hintClass = 'input-hint') => {
             el('capsule').classList.toggle('active', state !== 'reset');
             el('divider').classList.toggle('active', state !== 'reset');
@@ -338,7 +358,7 @@ function getHtml(host) {
                             state === 'ok' ? 'status-dot dot-ok' : 'status-dot';
             
             const hint = el('inputHint');
-            hint.innerHTML = hintHTML; // 支持 SVG 插入
+            hint.innerHTML = hintHTML; 
             hint.className = hintClass;
         };
 
@@ -366,7 +386,7 @@ function getHtml(host) {
                 if (domain === lastDomain && lastStatus !== 0) return; 
 
                 lastDomain = domain; lastStatus = 0;
-                setUI('checking', '<span>正在解析验证...</span>');
+                setUI('checking', '<span>正在由云端解析验证...</span>');
                 
                 clearTimeout(dnsTimer);
                 dnsTimer = setTimeout(() => verifyDomain(domain), 400);
@@ -378,7 +398,8 @@ function getHtml(host) {
 
         async function verifyDomain(domain) {
             try {
-                const resp = await fetch(\`https://cloudflare-dns.com/dns-query?name=\${domain}&type=A\`, { headers: { 'accept': 'application/dns-json' } });
+                // 彻底解决本地 CORS 或被墙问题，由后端 Worker 代理发出校验请求
+                const resp = await fetch(\`/__proxy_check?domain=\${encodeURIComponent(domain)}\`);
                 const { Status } = await resp.json();
                 
                 if (Status === 0) {
