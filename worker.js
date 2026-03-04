@@ -117,8 +117,10 @@ function getHtml(host) {
             padding: 20px 24px 80px; animation: fadeIn 0.8s ease forwards;
         }
 
-        .logo-svg { width: 56px; height: 56px; color: var(--primary); margin-bottom: 1.5rem; }
-        h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
+        /* 优化 Logo 尺寸，更克制优雅 */
+        .logo-svg { width: 42px; height: 42px; color: var(--primary); margin-bottom: 1.2rem; }
+        
+        h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
         .tagline { color: var(--text-light); font-size: 1.05rem; margin-bottom: 4rem; letter-spacing: -0.01em; }
 
         /* --- 输入框区域 --- */
@@ -220,17 +222,17 @@ function getHtml(host) {
             h1 { font-size: 2rem; }
             .tagline { font-size: 0.95rem; margin-bottom: 3rem; }
             .input-field { font-size: 1rem; }
-            .transit-capsule.active { width: 36px; } /* 收缩宽度仅显图标 */
-            .capsule-text { display: none; } /* 移动端隐藏 Proxy 文本 */
+            .transit-capsule.active { width: 36px; } 
+            .capsule-text { display: none; } 
             .divider.active { margin: 0 10px 0 8px; }
             .submit-btn { padding: 14px 38px; width: 100%; justify-content: center; }
-            .tooltip { display: none; } /* 移动端隐藏原生气泡以防溢出 */
+            .tooltip { display: none; } 
         }
     </style>
 </head>
 <body>
     <div class="main-container">
-        ${getLogoSvg()}
+        <div class="logo-svg">${getLogoSvg()}</div>
         <h1>Proxy Everything</h1>
         <p class="tagline">跨越边界，访问任意 URL</p>
 
@@ -264,7 +266,7 @@ function getHtml(host) {
 
             <button type="submit" id="mainBtn" class="submit-btn">
                 <span id="dot" class="status-dot"></span>
-                <span>代理访问</span>
+                <span id="btnText">代理访问</span>
             </button>
         </form>
     </div>
@@ -298,6 +300,12 @@ function getHtml(host) {
 
         function checkInput() {
             const val = el('targetUrl').value.trim();
+            
+            // 智能识别文件下载链接，实时切换按钮文本
+            const cleanPath = val.split('?')[0].split('#')[0];
+            const isDownload = /\\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
+            el('btnText').textContent = isDownload ? '代理下载' : '代理访问';
+
             if (!val) {
                 lastDomain = ''; lastStatus = 0;
                 setUI('reset', '支持完整 URL 或域名 (如 github.com/sinspired)');
