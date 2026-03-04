@@ -147,12 +147,14 @@ function getHtml(host) {
             --text-light: #666666;
             --line: #e5e5e5;
             --error: #ef4444;
+            --success: #22c55e;
             
-            /* 按钮文字色 */
             --btn-text: #ffffff;
+            --btn-disabled-bg: #e5e5e5;
+            --btn-disabled-text: #999999;
             
-            --btn-disabled-bg: #e5e5e5;  /* 浅灰背景 */
-            --btn-disabled-text: #999999; /* 深灰文字 */
+            --code-bg: #f9fafb;
+            --code-border: #e5e7eb;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -166,10 +168,11 @@ function getHtml(host) {
                 --line: #333333;
                 
                 --btn-text: #000000;
+                --btn-disabled-bg: #333333;
+                --btn-disabled-text: #888888;
                 
-                /* 深色模式下的禁用颜色 */
-                --btn-disabled-bg: #333333;   /* 深灰背景 */
-                --btn-disabled-text: #888888; /* 浅灰文字 */
+                --code-bg: #111111;
+                --code-border: #333333;
             }
         }
 
@@ -193,6 +196,7 @@ function getHtml(host) {
             max-width: 600px;
             text-align: center;
             animation: fadeIn 0.8s ease-out;
+            position: relative;
         }
 
         .logo-wrapper {
@@ -223,7 +227,7 @@ function getHtml(host) {
 
         .input-wrapper {
             position: relative;
-            margin-bottom: 3.5rem; 
+            margin-bottom: 2rem; 
             text-align: left;
         }
 
@@ -250,11 +254,16 @@ function getHtml(host) {
             border-bottom-color: var(--primary);
         }
 
+        /* 验证错误状态 */
+        .input-field.error {
+            border-bottom-color: var(--error);
+        }
+        
         .input-hint {
             position: absolute;
             top: 100%;
             left: 0;
-            margin-top: 12px;
+            margin-top: 8px;
             font-size: 0.85rem;
             color: var(--text-light);
             opacity: 0;
@@ -272,6 +281,67 @@ function getHtml(host) {
             transform: translateY(0);
         }
 
+        /* --- 代理链接预览区域 --- */
+        .link-preview {
+            margin-bottom: 2.5rem;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            pointer-events: none; /* 默认不可点 */
+            height: 0;
+            overflow: hidden;
+        }
+
+        .link-preview.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+            height: auto;
+            margin-top: 2rem; /* 给上方提示留出空间 */
+        }
+
+        .preview-box {
+            background-color: var(--code-bg);
+            border: 1px dashed var(--code-border);
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            text-align: left;
+        }
+
+        .preview-box:hover {
+            border-color: var(--primary);
+        }
+
+        .preview-text {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .copy-icon {
+            color: var(--text-light);
+            flex-shrink: 0;
+        }
+
+        .preview-label {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-bottom: 5px;
+            text-align: left;
+            display: block;
+        }
+
+        /* --- 按钮 --- */
         .btn-go {
             background: var(--primary);
             color: var(--btn-text);
@@ -296,17 +366,39 @@ function getHtml(host) {
             transform: scale(0.98);
         }
 
-        /* 禁用状态样式*/
         .btn-go:disabled {
-            background-color: var(--btn-disabled-bg); /* 使用专门的禁用背景 */
-            color: var(--btn-disabled-text);          /* 使用专门的禁用文字色 */
+            background-color: var(--btn-disabled-bg);
+            color: var(--btn-disabled-text);
             cursor: not-allowed;
-            opacity: 1; /* 移除透明度，完全靠颜色控制 */
+            opacity: 1;
             transform: none;
         }
 
+        /* --- 复制成功提示 Toast --- */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background-color: var(--primary);
+            color: var(--btn-text);
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
         footer {
-            margin-top: 5rem;
+            margin-top: 4rem;
             font-size: 0.8rem;
             color: var(--text-light);
         }
@@ -355,11 +447,21 @@ function getHtml(host) {
                     autofocus
                     oninput="checkInput()"
                 >
+                <!-- 提示信息 -->
                 <div class="input-hint">支持完整 URL 或域名 (如 github.com/sinspired)</div>
             </div>
 
+            <!-- 代理链接生成/预览区域 -->
+            <div id="linkPreview" class="link-preview">
+                <span class="preview-label">生成加速链接 (点击复制):</span>
+                <div class="preview-box" onclick="copyLink()">
+                    <span id="generatedUrl" class="preview-text"></span>
+                    <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </div>
+            </div>
+
             <button type="submit" id="btnGo" class="btn-go" disabled>
-                加速访问 <span>&rarr;</span>
+                代理访问 <span>&rarr;</span>
             </button>
         </form>
 
@@ -373,18 +475,70 @@ function getHtml(host) {
         </footer>
     </div>
 
+    <!-- Toast 提示框 -->
+    <div id="toast" class="toast">已复制到剪贴板</div>
+
     <script>
         document.addEventListener('DOMContentLoaded', checkInput);
 
         function checkInput() {
             const input = document.getElementById('targetUrl');
             const btn = document.getElementById('btnGo');
+            const preview = document.getElementById('linkPreview');
+            const generatedUrlSpan = document.getElementById('generatedUrl');
             
-            if (input.value.trim().length > 0) {
+            let val = input.value.trim();
+
+            // 简单验证: 包含点号且不包含空格，长度大于3
+            const isValid = val.length > 3 && val.includes('.') && !val.includes(' ');
+
+            if (isValid) {
+                // 输入合法
                 btn.removeAttribute('disabled');
+                input.classList.remove('error');
+                
+                // 构造完整代理 URL
+                // 如果用户没输协议，我们默认视为 https 处理
+                let target = val;
+                if (!target.startsWith('http')) {
+                    target = 'https://' + target;
+                }
+                const fullProxyUrl = window.location.origin + '/' + target;
+                
+                generatedUrlSpan.textContent = fullProxyUrl;
+                preview.classList.add('visible');
             } else {
+                // 输入不合法或为空
                 btn.setAttribute('disabled', 'true');
+                preview.classList.remove('visible');
+                
+                // 只有当有内容但格式不对时才标红，避免一开始就标红
+                if (val.length > 5 && (!val.includes('.') || val.includes(' '))) {
+                    // 可以选择是否严格标红，这里暂时不强加 error class，保持界面清爽
+                    // input.classList.add('error'); 
+                } else {
+                    input.classList.remove('error');
+                }
             }
+        }
+
+        function copyLink() {
+            const urlText = document.getElementById('generatedUrl').textContent;
+            if (!urlText) return;
+
+            navigator.clipboard.writeText(urlText).then(() => {
+                showToast();
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
         }
 
         function handleProxy(e) {
