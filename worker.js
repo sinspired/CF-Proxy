@@ -163,7 +163,8 @@ function getHtml(host) {
             transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: help; color: var(--text-light); position: relative;
         }
-        .transit-capsule.active { width: 48px; opacity: 1; }
+        /* [核心修复]: 激活时允许内容溢出，以便显示气泡 */
+        .transit-capsule.active { width: 48px; opacity: 1; overflow: visible; }
 
         /* 胶囊与网址之间的分割线 | */
         .divider {
@@ -195,7 +196,8 @@ function getHtml(host) {
             cursor: pointer; display: flex; align-items: center; justify-content: center;
             transition: all 0.4s; position: relative;
         }
-        .copy-btn.active { width: 40px; opacity: 1; margin-left: 10px; }
+        /* [核心修复]: 激活时允许内容溢出，以便显示气泡 */
+        .copy-btn.active { width: 40px; opacity: 1; margin-left: 10px; overflow: visible; }
         .copy-btn:hover { color: var(--text); background: transparent; }
 
         /* --- 主按钮 --- */
