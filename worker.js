@@ -28,7 +28,7 @@ async function handleRequest(request) {
         });
     }
 
-    // 3. 拦截预览图请求 (让社交分享链接生效)
+    // 3. 拦截预览图请求
     if (url.pathname === '/preview.png') {
         return fetch(`${RAW_URL}/preview.png`);
     }
@@ -36,7 +36,6 @@ async function handleRequest(request) {
     // 4. 代理逻辑
     let actualUrlStr = url.pathname.slice(1) + url.search;
 
-    // 智能补全协议
     if (!actualUrlStr.startsWith('http')) {
         if (actualUrlStr.includes('.') && !actualUrlStr.startsWith('favicon')) {
             actualUrlStr = 'https://' + actualUrlStr;
@@ -59,7 +58,6 @@ async function handleRequest(request) {
         newHeaders.delete('x-forwarded-for');
         newHeaders.delete('x-real-ip');
 
-        // GitHub Token 注入逻辑
         if (targetUrl.hostname === 'api.github.com' && typeof GH_TOKEN !== 'undefined') {
             newHeaders.set('Authorization', `Bearer ${GH_TOKEN}`);
             newHeaders.set('User-Agent', 'CF-Proxy/Worker');
@@ -129,36 +127,41 @@ function getHtml(host) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/favicon.ico" type="image/svg+xml">
     
-    <!-- SEO & Social Media -->
     <title>${SITE_NAME} - 极简通用代理</title>
     <meta name="description" content="基于 Cloudflare Workers 的极简通用代理服务。跨越边界，访问任意 URL。">
     <meta name="keywords" content="proxy, cloudflare workers, 代理, 跨域, github加速">
     
-    <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://${host}/">
     <meta property="og:title" content="${SITE_NAME} - Proxy Everything">
     <meta property="og:description" content="跨越边界，访问任意 URL。">
-    <!-- 指向 Worker 自身的预览图路径，后端会自动去 GitHub 拉取 -->
     <meta property="og:image" content="https://${host}/preview.png">
 
     <style>
         :root {
+            /* 浅色模式：黑白极简 */
+            --primary: #000000;          /* 纯黑 */
+            --primary-hover: #333333;    /* 深灰 Hover */
             --bg: #ffffff;
             --text: #111111;
             --text-light: #666666;
             --line: #e5e5e5;
-            --accent: #000000;
-            --error: #e63946;
+            --disabled: #d1d5db;         /* 浅灰色用于禁用状态 */
+            --btn-text: #ffffff;         /* 按钮文字色 */
+            --error: #ef4444;
         }
 
         @media (prefers-color-scheme: dark) {
             :root {
-                --bg: #0a0a0a;
+                /* 深色模式：反转 */
+                --primary: #ffffff;      /* 纯白 */
+                --primary-hover: #e5e5e5; /* 浅灰 Hover */
+                --bg: #0a0a0a;           /* 近似黑背景 */
                 --text: #ffffff;
                 --text-light: #888888;
                 --line: #333333;
-                --accent: #ffffff;
+                --disabled: #333333;     /* 深灰色用于禁用状态 */
+                --btn-text: #000000;     /* 按钮文字色变黑 */
             }
         }
 
@@ -192,8 +195,9 @@ function getHtml(host) {
         .logo-svg {
             width: 64px;
             height: 64px;
-            color: var(--text);
-            transition: color 0.3s;
+            color: var(--primary);
+            transition: all 0.3s;
+            /* 去除了彩色投影，保持纯净 */
         }
 
         h1 {
@@ -212,8 +216,6 @@ function getHtml(host) {
 
         .input-wrapper {
             position: relative;
-            /* 增加了底部间距，从 2rem 改为 3.5rem */
-            /* 这样为绝对定位的提示文字留出了足够的呼吸空间，避免与按钮挤在一起 */
             margin-bottom: 3.5rem; 
             text-align: left;
         }
@@ -228,7 +230,7 @@ function getHtml(host) {
             color: var(--text);
             border-radius: 0;
             outline: none;
-            transition: border-color 0.3s ease;
+            transition: all 0.3s ease;
             font-family: monospace;
         }
 
@@ -237,21 +239,22 @@ function getHtml(host) {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
+        /* 聚焦时使用主色（黑或白） */
         .input-field:focus {
-            border-bottom-color: var(--accent);
+            border-bottom-color: var(--primary);
         }
 
         .input-hint {
             position: absolute;
             top: 100%;
             left: 0;
-            margin-top: 12px; /* 稍微增加一点与横线的距离 */
-            font-size: 0.85rem; /* 稍微调大一点字号 */
+            margin-top: 12px;
+            font-size: 0.85rem;
             color: var(--text-light);
             opacity: 0;
             transform: translateY(-5px);
             transition: all 0.3s ease;
-            white-space: nowrap; /* 防止手机上文字意外换行 */
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             width: 100%;
@@ -264,31 +267,39 @@ function getHtml(host) {
         }
 
         .btn-go {
-            background: var(--text);
-            color: var(--bg);
+            background: var(--primary);
+            color: var(--btn-text); /* 按钮文字颜色根据模式反转 */
             border: none;
-            padding: 14px 36px; /* 稍微加大按钮尺寸 */
+            padding: 14px 36px;
             font-size: 1rem;
             font-weight: 600;
             border-radius: 50px;
             cursor: pointer;
-            transition: transform 0.2s, opacity 0.2s;
+            transition: all 0.3s ease;
             display: inline-flex;
             align-items: center;
             gap: 8px;
         }
 
         .btn-go:hover {
-            opacity: 0.9;
-            transform: scale(1.02);
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
         }
 
         .btn-go:active {
             transform: scale(0.98);
         }
 
+        /* 禁用状态样式 */
+        .btn-go:disabled {
+            background-color: var(--disabled);
+            cursor: not-allowed;
+            opacity: 0.5;
+            transform: none;
+        }
+
         footer {
-            margin-top: 5rem; /* 底部 footer 也稍微拉开一点距离 */
+            margin-top: 5rem;
             font-size: 0.8rem;
             color: var(--text-light);
         }
@@ -301,7 +312,8 @@ function getHtml(host) {
         }
 
         footer a:hover {
-            border-bottom: 1px solid var(--text);
+            color: var(--primary);
+            border-bottom: 1px solid var(--primary);
         }
 
         .disclaimer {
@@ -334,11 +346,12 @@ function getHtml(host) {
                     placeholder="输入目标网址..." 
                     autocomplete="off" 
                     autofocus
+                    oninput="checkInput()"
                 >
                 <div class="input-hint">支持完整 URL 或域名 (如 github.com/sinspired)</div>
             </div>
 
-            <button type="submit" class="btn-go">
+            <button type="submit" id="btnGo" class="btn-go" disabled>
                 开始访问 <span>&rarr;</span>
             </button>
         </form>
@@ -354,18 +367,25 @@ function getHtml(host) {
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', checkInput);
+
+        function checkInput() {
+            const input = document.getElementById('targetUrl');
+            const btn = document.getElementById('btnGo');
+            
+            if (input.value.trim().length > 0) {
+                btn.removeAttribute('disabled');
+            } else {
+                btn.setAttribute('disabled', 'true');
+            }
+        }
+
         function handleProxy(e) {
             e.preventDefault();
             const input = document.getElementById('targetUrl');
             let url = input.value.trim();
             
-            if (!url) {
-                input.style.borderBottomColor = 'var(--error)';
-                setTimeout(() => {
-                    input.style.borderBottomColor = ''; 
-                }, 1000);
-                return;
-            }
+            if (!url) return;
 
             const currentOrigin = window.location.origin;
             window.location.href = currentOrigin + '/' + url;
