@@ -31,6 +31,10 @@ async function handleRequest(request) {
         return fetch(`${RAW_URL}/preview.png`);
     }
 
+    if (url.pathname === '/CF-Proxy_OG.png') {
+        return fetch(`${RAW_URL}/CF-Proxy_OG.png`);
+    }
+
     // 3. 代理逻辑
     let actualUrlStr = url.pathname.slice(1) + url.search;
 
@@ -162,7 +166,7 @@ function getHtml(host) {
     <meta property="og:type" content="website">
     <meta property="og:title" content="${SITE_NAME}">
     <meta property="og:description" content="跨越边界，访问任意 URL。">
-    <meta property="og:image" content="https://${host}/preview.png">
+    <meta property="og:image" content="https://${host}/CF-Proxy_OG.png">
 
     <style>
         :root {
