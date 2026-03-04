@@ -4,6 +4,7 @@
  */
 
 const REPO_URL = "https://github.com/sinspired/CF-Proxy";
+const RAW_URL = "https://raw.githubusercontent.com/sinspired/CF-Proxy/main";
 const SITE_NAME = "CF Proxy - 通用代理加速";
 
 addEventListener('fetch', event => {
@@ -20,6 +21,15 @@ async function handleRequest(request) {
     if (url.pathname === '/favicon.ico' || url.pathname === '/favicon.svg') {
         return new Response(getLogoSvg(), { headers: { 'Content-Type': 'image/svg+xml' } });
     }
+
+    if (url.pathname === '/preview.png') {
+        return fetch(`${RAW_URL}/preview.png`);
+    }
+
+    if (url.pathname === '/CF-Proxy_OG.png') {
+        return fetch(`${RAW_URL}/CF-Proxy_OG.png`);
+    }
+
 
     // 2. 内部 API: 纯 Server-Side 网络连通性验证 (支持 IPv4 + IPv6，无视客户端本地污染)
     if (url.pathname === '/__proxy_check') {
@@ -59,6 +69,7 @@ async function handleRequest(request) {
 
     // 3. 代理逻辑解析
     let actualUrlStr = url.pathname.slice(1) + url.search;
+    // 智能补全协议逻辑
     if (!actualUrlStr.startsWith('http')) {
         if (actualUrlStr.includes('.') && !actualUrlStr.startsWith('favicon')) {
             actualUrlStr = 'https://' + actualUrlStr;
@@ -69,12 +80,24 @@ async function handleRequest(request) {
 
     try {
         const targetUrl = new URL(actualUrlStr);
+        // 构建请求头，添加必要的 Host、Referer、Origin 等字段
         const newHeaders = new Headers(request.headers);
         newHeaders.set('Host', targetUrl.host);
         newHeaders.set('Referer', targetUrl.origin);
         newHeaders.set('Origin', targetUrl.origin);
 
+        // 删除可能暴露用户真实 IP 的字段
         ['cf-connecting-ip', 'cf-ipcountry', 'x-forwarded-for', 'x-real-ip'].forEach(h => newHeaders.delete(h));
+
+        // GitHub Token 注入
+        if (targetUrl.hostname === 'api.github.com' && typeof GH_TOKEN !== 'undefined') {
+            newHeaders.set('Authorization', `Bearer ${GH_TOKEN}`);
+            newHeaders.set('User-Agent', 'CF-Proxy/Worker');
+        } else {
+            if (!newHeaders.get('User-Agent')) {
+                newHeaders.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36');
+            }
+        }
 
         const response = await fetch(new Request(targetUrl.toString(), {
             headers: newHeaders,
@@ -83,6 +106,7 @@ async function handleRequest(request) {
             redirect: 'manual'
         }));
 
+        // 处理重定向，保持在代理路径下
         if ([301, 302, 303, 307, 308].includes(response.status)) {
             const location = response.headers.get('location');
             if (location) {
@@ -93,6 +117,8 @@ async function handleRequest(request) {
 
         const responseHeaders = new Headers(response.headers);
         responseHeaders.set('Access-Control-Allow-Origin', '*');
+        responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        responseHeaders.set('Access-Control-Allow-Headers', '*');
         responseHeaders.delete('Content-Security-Policy');
         responseHeaders.delete('X-Frame-Options');
 
@@ -150,6 +176,12 @@ function getHtml(host) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" href="/favicon.ico" type="image/svg+xml">
     <title>${SITE_NAME}</title>
+    <meta name="description" content="基于 Cloudflare Workers 的极简通用代理加速服务。">
+    
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="${SITE_NAME}">
+    <meta property="og:description" content="跨越边界，访问任意 URL。">
+    <meta property="og:image" content="https://${host}/CF-Proxy_OG.png">
     <style>
         :root {
             --primary: #000000; --bg: #ffffff; --text: #111111; --text-light: #888888; --line: #c9c9c9;
@@ -180,7 +212,7 @@ function getHtml(host) {
             padding: 20px 24px 80px; animation: fadeIn 0.8s ease forwards;
         }
 
-        .logo-svg { width: 60px; height: 60px; color: var(--primary); margin-bottom: 1.2rem; }
+        .logo-svg { width: 60px; height: 60px; color: var(--primary); margin-bottom: 1.2rem; transition: all 0.3s; }
 
         h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em; transition: font-size 0.3s ease; }
         .tagline { color: var(--text-light); font-size: 1.05rem; margin-bottom: 4rem; letter-spacing: -0.01em; transition: font-size 0.3s ease; }
