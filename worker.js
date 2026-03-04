@@ -1,5 +1,5 @@
 /**
- * CF-Proxy: 通用代理服务 (极简优雅定制版)
+ * CF-Proxy: 通用代理服务 (极简优雅终极版)
  * Repo: https://github.com/sinspired/CF-Proxy
  */
 
@@ -67,6 +67,7 @@ async function handleRequest(request) {
             headers: responseHeaders
         });
     } catch (e) {
+        // 当底层网络连接彻底失败时触发 (如目标服务器宕机、DNS无法解析)
         return new Response(getErrorHtml(e.message, actualUrlStr), {
             status: 500,
             headers: { 'Content-Type': 'text/html; charset=utf-8' }
@@ -78,8 +79,34 @@ function getLogoSvg() {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`;
 }
 
+// 全新极简重构的底层错误页面
 function getErrorHtml(errorMsg, targetUrl) {
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>失败 - ${SITE_NAME}</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center;padding:50px;color:#ef4444;background:#fff;line-height:1.6} .code{font-family:monospace;background:#f3f4f6;padding:12px 20px;border-radius:8px;display:inline-block;color:#666;margin-top:10px} a{color:#000;text-decoration:none;border-bottom:1px solid #ccc;padding-bottom:2px}</style></head><body><h1>代理访问失败</h1><p>${targetUrl}</p><div class="code">${errorMsg}</div><br><br><a href="/">返回首页</a></body></html>`;
+    return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>代理访问失败 - ${SITE_NAME}</title>
+    <style>
+        :root { --bg: #ffffff; --text: #111111; --text-light: #888888; --line: #eaeaea; --error: #ef4444; }
+        @media (prefers-color-scheme: dark) { :root { --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666; --line: rgba(255,255,255,0.15); } }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; text-align: center; }
+        .icon { color: var(--error); width: 48px; height: 48px; margin-bottom: 20px; }
+        h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 12px; }
+        .url { color: var(--text-light); word-break: break-all; margin-bottom: 24px; font-family: ui-monospace, monospace; font-size: 0.95rem; }
+        .code { background: rgba(239, 68, 68, 0.08); color: var(--error); padding: 12px 20px; border-radius: 8px; font-family: ui-monospace, monospace; font-size: 0.85rem; margin-bottom: 40px; text-align: left; max-width: 100%; word-break: break-all; border: 1px solid rgba(239, 68, 68, 0.2); }
+        a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); padding-bottom: 2px; transition: opacity 0.2s; font-size: 0.95rem; }
+        a:hover { opacity: 0.6; }
+    </style>
+</head>
+<body>
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+    <h1>无法访问目标地址</h1>
+    <div class="url">${targetUrl}</div>
+    <div class="code">Error: ${errorMsg}</div>
+    <a href="/">返回首页</a>
+</body>
+</html>`;
 }
 
 function getHtml(host) {
@@ -97,12 +124,15 @@ function getHtml(host) {
         }
         @media (prefers-color-scheme: dark) {
             :root { 
-                --primary: #ffffff; --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666; --line: #222222; 
+                --primary: #ffffff; --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666; 
+                --line: rgba(255, 255, 255, 0.15); /* 提亮深色模式下的底边框 */
                 --capsule-bg: rgba(255,255,255,0.08); 
             }
         }
 
+        /* 增加 overflow-x: hidden 防止小屏手机左右滑动 */
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { overflow-x: hidden; } 
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -117,11 +147,10 @@ function getHtml(host) {
             padding: 20px 24px 80px; animation: fadeIn 0.8s ease forwards;
         }
 
-        /* 优化 Logo 尺寸，更克制优雅 */
-        .logo-svg { width: 56px; height: 56px; color: var(--primary); margin-bottom: 1.2rem; }
+        .logo-svg { width: 42px; height: 42px; color: var(--primary); margin-bottom: 1.2rem; }
         
-        h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
-        .tagline { color: var(--text-light); font-size: 1.05rem; margin-bottom: 4rem; letter-spacing: -0.01em; }
+        h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em; transition: font-size 0.3s ease; }
+        .tagline { color: var(--text-light); font-size: 1.05rem; margin-bottom: 4rem; letter-spacing: -0.01em; transition: font-size 0.3s ease;}
 
         /* --- 输入框区域 --- */
         form { width: 100%; }
@@ -131,18 +160,20 @@ function getHtml(host) {
             transition: border-color 0.4s ease;
         }
         .input-group:focus-within { border-color: var(--primary); }
-        .input-wrapper { flex: 1; position: relative; display: flex; align-items: center; }
+        .input-wrapper { flex: 1; position: relative; display: flex; align-items: center; min-width: 0; }
 
-        /* 状态提示文字 */
+        /* 状态提示文字 (引入 SVG flex 布局) */
         .input-hint {
             position: absolute; top: calc(100% + 12px); left: 0;
             font-size: 0.8rem; color: var(--text-light);
             transition: all 0.3s ease; pointer-events: none; white-space: nowrap;
+            display: flex; align-items: center; gap: 4px;
         }
         .input-hint.error { color: var(--error); }
         .input-hint.success { color: var(--success); }
+        .hint-icon { width: 14px; height: 14px; flex-shrink: 0; }
 
-        /* 左侧中转胶囊 (Server + Text) */
+        /* 左侧中转胶囊 */
         .transit-capsule {
             display: flex; align-items: center; justify-content: center; gap: 6px;
             width: 0; opacity: 0; overflow: hidden; height: 32px;
@@ -162,7 +193,7 @@ function getHtml(host) {
         }
         .divider.active { opacity: 1; transform: scaleY(1); margin: 0 14px 0 10px; }
 
-        /* 气泡提示 (极简黑白) */
+        /* 气泡提示 */
         .tooltip {
             position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -8px) scale(0.95);
             background: var(--text); color: var(--bg); padding: 6px 10px; border-radius: 6px;
@@ -171,15 +202,14 @@ function getHtml(host) {
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;
         }
         .transit-capsule:hover .tooltip, .copy-btn:hover .tooltip { opacity: 1; transform: translate(-50%, -12px) scale(1); }
-        .tooltip::after { 
-            content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); 
-            border:4px solid transparent; border-top-color:var(--text); 
-        }
+        .tooltip::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:4px solid transparent; border-top-color:var(--text); }
 
+        /* min-width: 0 防止 Flex 子元素溢出 */
         .input-field {
-            width: 100%; background: transparent; border: none; outline: none;
+            width: 100%; min-width: 0; background: transparent; border: none; outline: none;
             padding: 4px 0; font-size: 1.15rem; color: var(--text);
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            transition: font-size 0.3s ease;
         }
         .input-field::placeholder { color: var(--text-light); opacity: 0.5; font-family: inherit; }
 
@@ -217,7 +247,16 @@ function getHtml(host) {
         footer a:hover { opacity: 0.7; }
         .disclaimer { margin-top: 8px; opacity: 0.6; }
 
-        /* 移动端精致适配 */
+        /* --- 响应式适配 --- */
+        /* 大屏优化：等比放大，避免空旷 */
+        @media (min-width: 1024px) {
+            .main-container { max-width: 680px; }
+            h1 { font-size: 2.8rem; }
+            .tagline { font-size: 1.15rem; }
+            .input-field { font-size: 1.25rem; }
+        }
+
+        /* 手机端优化 */
         @media (max-width: 480px) {
             h1 { font-size: 2rem; }
             .tagline { font-size: 0.95rem; margin-bottom: 3rem; }
@@ -239,7 +278,6 @@ function getHtml(host) {
         <form onsubmit="handleProxy(event)">
             <div class="input-group">
                 <div id="capsule" class="transit-capsule">
-                    <!-- 极简服务器/节点图标 -->
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
                         <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
@@ -254,7 +292,7 @@ function getHtml(host) {
 
                 <div class="input-wrapper">
                     <input type="text" id="targetUrl" class="input-field" placeholder="输入目标网址..." autocomplete="off" autofocus oninput="checkInput()">
-                    <div id="inputHint" class="input-hint">支持完整 URL 或域名 (如 github.com/sinspired)</div>
+                    <div id="inputHint" class="input-hint"><span>支持完整 URL 或域名 (如 github.com/sinspired)</span></div>
                 </div>
                 
                 <button type="button" id="copyBtn" class="copy-btn" onclick="copyResult()">
@@ -282,8 +320,14 @@ function getHtml(host) {
         let lastStatus = 0; // 0:空闲, 1:成功, 2:失败
         const hostOrigin = window.location.origin;
 
+        // SVG 状态图标
+        const iconSuccess = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        const iconWarn = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+
         const el = (id) => document.getElementById(id);
-        const setUI = (state, hintText, hintClass = 'input-hint') => {
+        
+        // 渲染 UI 状态
+        const setUI = (state, hintHTML, hintClass = 'input-hint') => {
             el('capsule').classList.toggle('active', state !== 'reset');
             el('divider').classList.toggle('active', state !== 'reset');
             el('copyBtn').classList.toggle('active', state === 'ok' || state === 'fail-bypass');
@@ -294,21 +338,21 @@ function getHtml(host) {
                             state === 'ok' ? 'status-dot dot-ok' : 'status-dot';
             
             const hint = el('inputHint');
-            hint.textContent = hintText;
+            hint.innerHTML = hintHTML; // 支持 SVG 插入
             hint.className = hintClass;
         };
 
         function checkInput() {
             const val = el('targetUrl').value.trim();
             
-            // 智能识别文件下载链接，实时切换按钮文本
+            // 智能识别文件下载链接
             const cleanPath = val.split('?')[0].split('#')[0];
             const isDownload = /\\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
             el('btnText').textContent = isDownload ? '代理下载' : '代理访问';
 
             if (!val) {
                 lastDomain = ''; lastStatus = 0;
-                setUI('reset', '支持完整 URL 或域名 (如 github.com/sinspired)');
+                setUI('reset', '<span>支持完整 URL 或域名 (如 github.com/sinspired)</span>');
                 return;
             }
 
@@ -322,13 +366,13 @@ function getHtml(host) {
                 if (domain === lastDomain && lastStatus !== 0) return; 
 
                 lastDomain = domain; lastStatus = 0;
-                setUI('checking', '正在解析验证...');
+                setUI('checking', '<span>正在解析验证...</span>');
                 
                 clearTimeout(dnsTimer);
                 dnsTimer = setTimeout(() => verifyDomain(domain), 400);
             } else {
                 lastDomain = ''; lastStatus = 0;
-                setUI('reset', '请输入有效的域名或 URL', 'input-hint error');
+                setUI('reset', iconWarn + '<span>请输入有效的域名或 URL</span>', 'input-hint error');
             }
         }
 
@@ -339,14 +383,14 @@ function getHtml(host) {
                 
                 if (Status === 0) {
                     lastStatus = 1;
-                    setUI('ok', '✅ 域名解析通过', 'input-hint success');
+                    setUI('ok', iconSuccess + '<span>域名解析通过</span>', 'input-hint success');
                 } else {
                     lastStatus = 2;
-                    setUI('fail', '⚠ 无法解析该域名，请检查网址拼写', 'input-hint error');
+                    setUI('fail', iconWarn + '<span>无法解析该域名，请检查网址拼写</span>', 'input-hint error');
                 }
             } catch (e) {
                 lastStatus = 2;
-                setUI('fail-bypass', '⚠ 验证超时，但您可以尝试强行访问', 'input-hint error');
+                setUI('fail-bypass', iconWarn + '<span>验证超时，但您可以尝试强行访问</span>', 'input-hint error');
             }
         }
 
