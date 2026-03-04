@@ -118,7 +118,7 @@ function getHtml(host) {
         }
 
         /* 优化 Logo 尺寸，更克制优雅 */
-        .logo-svg { width: 42px; height: 42px; color: var(--primary); margin-bottom: 1.2rem; }
+        .logo-svg { width: 56px; height: 56px; color: var(--primary); margin-bottom: 1.2rem; }
         
         h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
         .tagline { color: var(--text-light); font-size: 1.05rem; margin-bottom: 4rem; letter-spacing: -0.01em; }
