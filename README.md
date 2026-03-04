@@ -1,5 +1,4 @@
-# 🌐 CF-Proxy
-
+<h1 align="center">🌐 CF-Proxy</h1>
 <div align="center">
 
 ![License](https://img.shields.io/github/license/sinspired/CF-Proxy?style=flat-square&color=blue)
