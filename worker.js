@@ -5,7 +5,7 @@
 
 const REPO_URL = "https://github.com/sinspired/CF-Proxy";
 const RAW_URL = "https://raw.githubusercontent.com/sinspired/CF-Proxy/main";
-const SITE_NAME = "Universal Proxy";
+const SITE_NAME = "CF Proxy - 通用代理加速";
 
 addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
@@ -127,14 +127,14 @@ function getHtml(host) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/favicon.ico" type="image/svg+xml">
     
-    <title>${SITE_NAME} - 极简通用代理</title>
-    <meta name="description" content="基于 Cloudflare Workers 的极简通用代理服务。跨越边界，访问任意 URL。">
+    <title>${SITE_NAME}</title>
+    <meta name="description" content="基于 Cloudflare Workers 的极简通用代理加速服务。跨越边界，访问任意 URL, 加速 GitHub 下载。">
     <meta name="keywords" content="proxy, cloudflare workers, 代理, 跨域, github加速">
     
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://${host}/">
-    <meta property="og:title" content="${SITE_NAME} - Proxy Everything">
-    <meta property="og:description" content="跨越边界，访问任意 URL。">
+    <meta property="og:title" content="${SITE_NAME}">
+    <meta property="og:description" content="极简通用代理加速服务, 跨越边界，访问任意 URL, 加速 GitHub 下载。">
     <meta property="og:image" content="https://${host}/preview.png">
 
     <style>
@@ -197,7 +197,6 @@ function getHtml(host) {
             height: 64px;
             color: var(--primary);
             transition: all 0.3s;
-            /* 去除了彩色投影，保持纯净 */
         }
 
         h1 {
@@ -352,7 +351,7 @@ function getHtml(host) {
             </div>
 
             <button type="submit" id="btnGo" class="btn-go" disabled>
-                开始访问 <span>&rarr;</span>
+                加速访问 <span>&rarr;</span>
             </button>
         </form>
 
