@@ -21,20 +21,19 @@ async function handleRequest(request) {
         });
     }
 
-    // 2. 静态资源 (Favicon) - 返回与页面 Logo 一致的 SVG
+    // 2. 静态资源 (Favicon)
     if (url.pathname === '/favicon.ico' || url.pathname === '/favicon.svg') {
         return new Response(getLogoSvg(), {
             headers: { 'Content-Type': 'image/svg+xml' }
         });
     }
 
-    // 拦截 /preview.png 请求，返回 GitHub 上的预览图
+    // 3. 拦截预览图请求 (让社交分享链接生效)
     if (url.pathname === '/preview.png') {
-        // 这里指向 GitHub 的 Raw 地址
         return fetch(`${RAW_URL}/preview.png`);
     }
 
-    // 3. 代理逻辑
+    // 4. 代理逻辑
     let actualUrlStr = url.pathname.slice(1) + url.search;
 
     // 智能补全协议
@@ -79,7 +78,6 @@ async function handleRequest(request) {
 
         const response = await fetch(modifiedRequest);
 
-        // 处理重定向
         if ([301, 302, 303, 307, 308].includes(response.status)) {
             const location = response.headers.get('location');
             if (location) {
@@ -113,9 +111,6 @@ async function handleRequest(request) {
     }
 }
 
-/**
- * 返回 Logo SVG 字符串 (用于 favicon 和 HTML 内嵌)
- */
 function getLogoSvg() {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"></circle>
@@ -124,9 +119,6 @@ function getLogoSvg() {
     </svg>`;
 }
 
-/**
- * 生成 HTML 页面
- */
 function getHtml(host) {
     const logoSvg = getLogoSvg();
 
@@ -139,23 +131,16 @@ function getHtml(host) {
     
     <!-- SEO & Social Media -->
     <title>${SITE_NAME} - 极简通用代理</title>
-    <meta name="description" content="CF-Proxy 是一个基于 Cloudflare Workers 的轻量级、高性能通用代理服务。突破限制，安全、快速地访问任意 URL。">
-    <meta name="keywords" content="proxy, web proxy, cloudflare workers, cors proxy, 代理, 跨域, 科学上网, github加速">
-    <meta name="author" content="sinspired">
-    <meta name="robots" content="index, follow">
+    <meta name="description" content="基于 Cloudflare Workers 的极简通用代理服务。跨越边界，访问任意 URL。">
+    <meta name="keywords" content="proxy, cloudflare workers, 代理, 跨域, github加速">
     
-    <!-- Open Graph / Facebook / WeChat -->
+    <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://${host}/">
     <meta property="og:title" content="${SITE_NAME} - Proxy Everything">
-    <meta property="og:description" content="跨越边界，访问任意 URL。基于 Cloudflare 边缘网络的极速代理体验。">
-    <!-- 如果你有 jpg 格式的预览图，可以在这里填入链接，否则大多数平台会尝试抓取页面内容 -->
-    <!-- <meta property="og:image" content="https://${host}/${RAW_URL}/preview.png"> -->
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="${SITE_NAME}">
-    <meta property="twitter:description" content="跨越边界，访问任意 URL。">
+    <meta property="og:description" content="跨越边界，访问任意 URL。">
+    <!-- 指向 Worker 自身的预览图路径，后端会自动去 GitHub 拉取 -->
+    <meta property="og:image" content="https://${host}/preview.png">
 
     <style>
         :root {
@@ -199,7 +184,6 @@ function getHtml(host) {
             animation: fadeIn 0.8s ease-out;
         }
 
-        /* Logo 样式 */
         .logo-wrapper {
             margin-bottom: 1.5rem;
             display: inline-block;
@@ -208,7 +192,7 @@ function getHtml(host) {
         .logo-svg {
             width: 64px;
             height: 64px;
-            color: var(--text); /* 跟随文字颜色变化 */
+            color: var(--text);
             transition: color 0.3s;
         }
 
@@ -226,10 +210,11 @@ function getHtml(host) {
             font-weight: 400;
         }
 
-        /* 极简输入框样式 */
         .input-wrapper {
             position: relative;
-            margin-bottom: 2rem;
+            /* 增加了底部间距，从 2rem 改为 3.5rem */
+            /* 这样为绝对定位的提示文字留出了足够的呼吸空间，避免与按钮挤在一起 */
+            margin-bottom: 3.5rem; 
             text-align: left;
         }
 
@@ -256,17 +241,20 @@ function getHtml(host) {
             border-bottom-color: var(--accent);
         }
 
-        /* 浮动标签/提示 */
         .input-hint {
             position: absolute;
             top: 100%;
             left: 0;
-            margin-top: 8px;
-            font-size: 0.8rem;
+            margin-top: 12px; /* 稍微增加一点与横线的距离 */
+            font-size: 0.85rem; /* 稍微调大一点字号 */
             color: var(--text-light);
             opacity: 0;
             transform: translateY(-5px);
             transition: all 0.3s ease;
+            white-space: nowrap; /* 防止手机上文字意外换行 */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
         }
 
         .input-field:focus + .input-hint,
@@ -279,7 +267,7 @@ function getHtml(host) {
             background: var(--text);
             color: var(--bg);
             border: none;
-            padding: 12px 30px;
+            padding: 14px 36px; /* 稍微加大按钮尺寸 */
             font-size: 1rem;
             font-weight: 600;
             border-radius: 50px;
@@ -300,7 +288,7 @@ function getHtml(host) {
         }
 
         footer {
-            margin-top: 4rem;
+            margin-top: 5rem; /* 底部 footer 也稍微拉开一点距离 */
             font-size: 0.8rem;
             color: var(--text-light);
         }
@@ -330,7 +318,6 @@ function getHtml(host) {
 </head>
 <body>
     <div class="main-container">
-        <!-- Logo 区域 -->
         <div class="logo-wrapper">
             <div class="logo-svg">${logoSvg}</div>
         </div>
