@@ -27,10 +27,9 @@ async function handleRequest(request) {
         if (!domain) return new Response(JSON.stringify({ Status: -1, msg: 'Missing domain' }), { status: 400 });
 
         try {
-            const hostname = domain.split(':')[0]; // 剥离端口号
+            const hostname = domain.split(':')[0];
             const headers = { 'accept': 'application/dns-json' };
 
-            // 并发查询 A 记录 (IPv4) 和 AAAA 记录 (IPv6)
             const [ipv4Resp, ipv6Resp] = await Promise.all([
                 fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=A`, { headers }),
                 fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=AAAA`, { headers })
@@ -39,7 +38,6 @@ async function handleRequest(request) {
             const ipv4 = await ipv4Resp.json();
             const ipv6 = await ipv6Resp.json();
 
-            // 必须 Status 为 0 (NOERROR) 且确切返回了 Answer (解析到了真实IP) 才是有效域名
             const hasIpv4 = ipv4.Status === 0 && ipv4.Answer && ipv4.Answer.length > 0;
             const hasIpv6 = ipv6.Status === 0 && ipv6.Answer && ipv6.Answer.length > 0;
 
@@ -48,7 +46,6 @@ async function handleRequest(request) {
                     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
                 });
             } else {
-                // 如果没有返回任何 IP 记录，视同 NXDOMAIN 失败处理
                 return new Response(JSON.stringify({ Status: 3 }), {
                     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
                 });
@@ -77,7 +74,6 @@ async function handleRequest(request) {
         newHeaders.set('Referer', targetUrl.origin);
         newHeaders.set('Origin', targetUrl.origin);
 
-        // 清理 CF 特有追踪头部
         ['cf-connecting-ip', 'cf-ipcountry', 'x-forwarded-for', 'x-real-ip'].forEach(h => newHeaders.delete(h));
 
         const response = await fetch(new Request(targetUrl.toString(), {
@@ -87,7 +83,6 @@ async function handleRequest(request) {
             redirect: 'manual'
         }));
 
-        // 处理重定向
         if ([301, 302, 303, 307, 308].includes(response.status)) {
             const location = response.headers.get('location');
             if (location) {
@@ -107,7 +102,6 @@ async function handleRequest(request) {
             headers: responseHeaders
         });
     } catch (e) {
-        // 当底层网络连接彻底失败时触发 (如目标服务器宕机、DNS无法解析)
         return new Response(getErrorHtml(e.message, actualUrlStr), {
             status: 500,
             headers: { 'Content-Type': 'text/html; charset=utf-8' }
@@ -119,7 +113,6 @@ function getLogoSvg() {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`;
 }
 
-// 极简重构的底层错误页面
 function getErrorHtml(errorMsg, targetUrl) {
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -163,35 +156,34 @@ function getHtml(host) {
             --capsule-bg: rgba(0,0,0,0.04); --success: #10b981; --error: #ef4444; --warn: #f59e0b;
         }
         @media (prefers-color-scheme: dark) {
-            :root { 
-                --primary: #ffffff; --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666; 
-                --line: rgba(255, 255, 255, 0.20); 
-                --capsule-bg: rgba(255,255,255,0.08); 
+            :root {
+                --primary: #ffffff; --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666;
+                --line: rgba(255,255,255,0.20);
+                --capsule-bg: rgba(255,255,255,0.08);
             }
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body { overflow-x: hidden; } 
-        
+        html, body { overflow-x: hidden; }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg); color: var(--text);
-            /* 采用 100dvh 适配 Safari 底部地址栏伸缩 */
-            min-height: 100vh; min-height: 100dvh; 
+            min-height: 100vh; min-height: 100dvh;
             display: flex; flex-direction: column;
             transition: background 0.4s ease;
         }
 
-        .main-container { 
+        .main-container {
             flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            width: 100%; max-width: 640px; margin: 0 auto; text-align: center; 
+            width: 100%; max-width: 640px; margin: 0 auto; text-align: center;
             padding: 20px 24px 80px; animation: fadeIn 0.8s ease forwards;
         }
 
         .logo-svg { width: 60px; height: 60px; color: var(--primary); margin-bottom: 1.2rem; }
-        
+
         h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em; transition: font-size 0.3s ease; }
-        .tagline { color: var(--text-light); font-size: 1.05rem; margin-bottom: 4rem; letter-spacing: -0.01em; transition: font-size 0.3s ease;}
+        .tagline { color: var(--text-light); font-size: 1.05rem; margin-bottom: 4rem; letter-spacing: -0.01em; transition: font-size 0.3s ease; }
 
         /* --- 输入框区域 --- */
         form { width: 100%; }
@@ -209,6 +201,7 @@ function getHtml(host) {
             font-size: 0.8rem; color: var(--text-light);
             transition: all 0.3s ease; pointer-events: none; white-space: nowrap;
             display: flex; align-items: center; gap: 4px;
+            max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
         }
         .input-hint.error { color: var(--error); }
         .input-hint.success { color: var(--success); }
@@ -224,12 +217,12 @@ function getHtml(host) {
             font-size: 13px; font-weight: 500;
         }
         .transit-capsule.active { width: 36px; opacity: 1; overflow: visible; }
-        .capsule-text { white-space: nowrap; display: none;}
+        .capsule-text { white-space: nowrap; display: none; }
 
         /* 分割线 */
         .divider {
             width: 2px; height: 16px; background-color: var(--line); border-radius: 1px;
-            margin: 0; opacity: 0; transform: scaleY(0.2); 
+            margin: 0; opacity: 0; transform: scaleY(0.2);
             transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .divider.active { opacity: 1; transform: scaleY(1); margin: 0 14px 0 10px; }
@@ -238,18 +231,18 @@ function getHtml(host) {
         .tooltip {
             position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -8px) scale(0.95);
             background: var(--text); color: var(--bg); padding: 6px 10px; border-radius: 6px;
-            font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; 
-            pointer-events: none; white-space: nowrap; opacity: 0; 
+            font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            pointer-events: none; white-space: nowrap; opacity: 0;
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;
         }
         .transit-capsule:hover .tooltip, .copy-btn:hover .tooltip { opacity: 1; transform: translate(-50%, -12px) scale(1); }
-        .tooltip::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:4px solid transparent; border-top-color:var(--text); }
+        .tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 4px solid transparent; border-top-color: var(--text); }
 
         .input-field {
             width: 100%; min-width: 0; background: transparent; border: none; outline: none;
             padding: 4px 0; font-size: 1.15rem; color: var(--text);
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            transition: font-size 0.3s ease;
+             transition: font-size 0.3s ease, color 0.15s ease; }
         }
         .input-field::placeholder { color: var(--text-light); opacity: 0.6; font-family: inherit; }
 
@@ -299,11 +292,11 @@ function getHtml(host) {
             h1 { font-size: 2rem; }
             .tagline { font-size: 0.95rem; margin-bottom: 3rem; }
             .input-field { font-size: 1rem; }
-            .transit-capsule.active { width: 36px; } 
-            .capsule-text { display: none; } 
+            .transit-capsule.active { width: 36px; }
+            .capsule-text { display: none; }
             .divider.active { margin: 0 10px 0 8px; }
             .submit-btn { padding: 14px 38px; width: 100%; justify-content: center; }
-            .tooltip { display: none; } 
+            .tooltip { display: none; }
         }
     </style>
 </head>
@@ -325,14 +318,23 @@ function getHtml(host) {
                     <span class="capsule-text">Proxy</span>
                     <div class="tooltip" id="capsuleTooltip">https://${host}/</div>
                 </div>
-                
+
                 <div id="divider" class="divider"></div>
 
                 <div class="input-wrapper">
-                    <input type="text" id="targetUrl" class="input-field" placeholder="输入目标网址..." autocomplete="off" autofocus oninput="checkInput()">
+                    <input
+                        type="text"
+                        id="targetUrl"
+                        class="input-field"
+                        placeholder="输入目标网址..."
+                        autocomplete="off"
+                        autofocus
+                        oninput="checkInput()"
+                        onfocus="requestAnimationFrame(() => { this.scrollLeft = this.scrollWidth; })"
+                    >
                     <div id="inputHint" class="input-hint"><span>支持完整 URL 或域名 (如 github.com/sinspired)</span></div>
                 </div>
-                
+
                 <button type="button" id="copyBtn" class="copy-btn" onclick="copyResult()">
                     <div class="tooltip" id="copyTooltip">生成完整加速链接</div>
                     <svg id="copyIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -358,36 +360,44 @@ function getHtml(host) {
         let lastStatus = 0; // 0:空闲, 1:成功, 2:失败
         const hostOrigin = window.location.origin;
 
-        // SVG 状态图标
         const iconSuccess = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
         const iconWarn = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
 
         const el = (id) => document.getElementById(id);
-        
+
+        // UI 状态控制
         const setUI = (state, hintHTML, hintClass = 'input-hint') => {
-            // 只在云端确实解析成功（或允许放行）时，才展现左侧胶囊和右侧复制按钮
             const isResolved = state === 'ok' || state === 'fail-bypass';
-            
+
             el('capsule').classList.toggle('active', isResolved);
             el('divider').classList.toggle('active', isResolved);
             el('copyBtn').classList.toggle('active', isResolved);
-            
-            // 主按钮的点击状态也同步受控
             el('mainBtn').classList.toggle('ready', isResolved);
-            
-            const dot = el('dot');
-            dot.className = state === 'checking' ? 'status-dot dot-checking' : 
-                            isResolved ? 'status-dot dot-ok' : 'status-dot';
-            
-            const hint = el('inputHint');
-            hint.innerHTML = hintHTML; 
-            hint.className = hintClass;
+
+            el('dot').className = state === 'checking' ? 'status-dot dot-checking' :
+                                  isResolved ? 'status-dot dot-ok' : 'status-dot';
+
+            el('inputHint').innerHTML = hintHTML;
+            el('inputHint').className = hintClass;
+
+            // 解析完成：滚到末尾
+            if (isResolved) {
+                const inputEl = el('targetUrl');
+                requestAnimationFrame(() => {
+                    inputEl.scrollLeft = inputEl.scrollWidth;
+                    // el('mainBtn').focus();
+                });
+            }
         };
 
+        // 输入监控与初步验证
         function checkInput() {
-            const val = el('targetUrl').value.trim();
-            
-            // 智能识别文件下载链接
+            const inputEl = el('targetUrl');
+            const val = inputEl.value.trim();
+
+            // 输入过程中始终显示末尾
+            inputEl.scrollLeft = inputEl.scrollWidth;
+
             const cleanPath = val.split('?')[0].split('#')[0];
             const isDownload = /\\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
             el('btnText').textContent = isDownload ? '加速下载' : '加速访问';
@@ -403,14 +413,13 @@ function getHtml(host) {
 
             const domain = val.replace(/^https?:\\/\\//, '').split('/')[0];
             const isDomain = domain.includes('.') && domain.split('.').pop().length >= 2;
-            
+
             if (isDomain) {
-                // 如果域名没变且已经校验过了，不再重复触发 UI 抖动和请求
-                if (domain === lastDomain && lastStatus !== 0) return; 
+                if (domain === lastDomain && lastStatus !== 0) return;
 
                 lastDomain = domain; lastStatus = 0;
                 setUI('checking', '<span>正在由云端解析验证网址...</span>');
-                
+
                 clearTimeout(dnsTimer);
                 dnsTimer = setTimeout(() => verifyDomain(domain), 400);
             } else {
@@ -419,13 +428,12 @@ function getHtml(host) {
             }
         }
 
+        // 使用dns-over-https在云端验证域名解析，绕过本地 DNS 污染，确保用户输入的地址确实可达
         async function verifyDomain(domain) {
             try {
-                // 由后端 Worker 发起查询，避开客户端 DNS 污染及跨域阻断
                 const resp = await fetch(\`/__proxy_check?domain=\${encodeURIComponent(domain)}\`);
                 const { Status } = await resp.json();
-                
-                // 防御竞态条件: 如果网络返回时，用户已经在输入框改了别的域名，直接丢弃该废弃结果
+
                 if (domain !== lastDomain) return;
 
                 if (Status === 0) {
@@ -442,6 +450,7 @@ function getHtml(host) {
             }
         }
 
+        // 复制拼接后的加速链接到剪贴板，并显示反馈
         function copyResult() {
             navigator.clipboard.writeText(el('copyTooltip').textContent).then(() => {
                 el('copyIcon').style.display = 'none';
@@ -449,10 +458,11 @@ function getHtml(host) {
                 setTimeout(() => {
                     el('copyIcon').style.display = 'block';
                     el('checkIcon').style.display = 'none';
-                }, 2000);
+                }, 1000);
             });
         }
 
+        // 表单提交处理，打开加速后的链接
         function handleProxy(e) {
             e.preventDefault();
             const val = el('targetUrl').value.trim();
