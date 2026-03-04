@@ -21,27 +21,41 @@ async function handleRequest(request) {
         return new Response(getLogoSvg(), { headers: { 'Content-Type': 'image/svg+xml' } });
     }
 
-    // 2. 内部 API: 服务端代为执行网络连通性验证 (避免前端因 CORS 或本地 DNS 污染导致验证失败)
+    // 2. 内部 API: 纯 Server-Side 网络连通性验证 (支持 IPv4 + IPv6，无视客户端本地污染)
     if (url.pathname === '/__proxy_check') {
         const domain = url.searchParams.get('domain');
         if (!domain) return new Response(JSON.stringify({ Status: -1, msg: 'Missing domain' }), { status: 400 });
 
         try {
-            // 剥离可能存在的端口号，获取纯主机名
-            const hostname = domain.split(':')[0];
+            const hostname = domain.split(':')[0]; // 剥离端口号
+            const headers = { 'accept': 'application/dns-json' };
             
-            // 由 Cloudflare 服务端直接发起 DNS 解析
-            const dnsResp = await fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=A`, { 
-                headers: { 'accept': 'application/dns-json' } 
-            });
-            const dnsData = await dnsResp.json();
+            // 并发查询 A 记录 (IPv4) 和 AAAA 记录 (IPv6)
+            const[ipv4Resp, ipv6Resp] = await Promise.all([
+                fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=A`, { headers }),
+                fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=AAAA`, { headers })
+            ]);
             
-            return new Response(JSON.stringify({ Status: dnsData.Status }), {
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
+            const ipv4 = await ipv4Resp.json();
+            const ipv6 = await ipv6Resp.json();
+
+            // 必须 Status 为 0 (NOERROR) 且确切返回了 Answer (解析到了真实IP) 才是有效域名
+            const hasIpv4 = ipv4.Status === 0 && ipv4.Answer && ipv4.Answer.length > 0;
+            const hasIpv6 = ipv6.Status === 0 && ipv6.Answer && ipv6.Answer.length > 0;
+
+            if (hasIpv4 || hasIpv6) {
+                return new Response(JSON.stringify({ Status: 0 }), {
+                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                });
+            } else {
+                // 如果没有返回任何 IP 记录，视同 NXDOMAIN 失败处理
+                return new Response(JSON.stringify({ Status: 3 }), { 
+                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                });
+            }
         } catch (e) {
             return new Response(JSON.stringify({ Status: -1, error: e.message }), { 
-                headers: { 'Content-Type': 'application/json' } 
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } 
             });
         }
     }
@@ -104,7 +118,7 @@ function getLogoSvg() {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`;
 }
 
-// 全新极简重构的底层错误页面
+// 极简重构的底层错误页面
 function getErrorHtml(errorMsg, targetUrl) {
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -115,7 +129,7 @@ function getErrorHtml(errorMsg, targetUrl) {
     <style>
         :root { --bg: #ffffff; --text: #111111; --text-light: #888888; --line: #eaeaea; --error: #ef4444; }
         @media (prefers-color-scheme: dark) { :root { --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666; --line: rgba(255,255,255,0.15); } }
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; text-align: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; min-height: 100dvh; margin: 0; padding: 20px; text-align: center; }
         .icon { color: var(--error); width: 48px; height: 48px; margin-bottom: 20px; }
         h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 12px; }
         .url { color: var(--text-light); word-break: break-all; margin-bottom: 24px; font-family: ui-monospace, monospace; font-size: 0.95rem; }
@@ -161,7 +175,9 @@ function getHtml(host) {
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg); color: var(--text);
-            min-height: 100vh; display: flex; flex-direction: column;
+            /* 采用 100dvh 完美适配 Safari 底部地址栏伸缩 */
+            min-height: 100vh; min-height: 100dvh; 
+            display: flex; flex-direction: column;
             transition: background 0.4s ease;
         }
 
@@ -348,9 +364,13 @@ function getHtml(host) {
         const el = (id) => document.getElementById(id);
         
         const setUI = (state, hintHTML, hintClass = 'input-hint') => {
-            el('capsule').classList.toggle('active', state !== 'reset');
-            el('divider').classList.toggle('active', state !== 'reset');
-            el('copyBtn').classList.toggle('active', state === 'ok' || state === 'fail-bypass');
+            const showElements = state !== 'reset';
+            // 同步展现左侧胶囊与右侧复制按钮，保持视觉平衡
+            el('capsule').classList.toggle('active', showElements);
+            el('divider').classList.toggle('active', showElements);
+            el('copyBtn').classList.toggle('active', showElements);
+            
+            // 主按钮仅在网络检测通过时解禁
             el('mainBtn').classList.toggle('ready', state === 'ok' || state === 'fail-bypass');
             
             const dot = el('dot');
@@ -398,10 +418,13 @@ function getHtml(host) {
 
         async function verifyDomain(domain) {
             try {
-                // 彻底解决本地 CORS 或被墙问题，由后端 Worker 代理发出校验请求
+                // 由后端 Worker 发起查询，避开客户端 DNS 污染及跨域阻断
                 const resp = await fetch(\`/__proxy_check?domain=\${encodeURIComponent(domain)}\`);
                 const { Status } = await resp.json();
                 
+                // 【防御竞态条件 Bug】: 如果网络返回时，用户已经在输入框改了别的域名，直接丢弃这个废弃的结果
+                if (domain !== lastDomain) return;
+
                 if (Status === 0) {
                     lastStatus = 1;
                     setUI('ok', iconSuccess + '<span>域名解析通过</span>', 'input-hint success');
@@ -410,6 +433,7 @@ function getHtml(host) {
                     setUI('fail', iconWarn + '<span>无法解析该域名，请检查网址拼写</span>', 'input-hint error');
                 }
             } catch (e) {
+                if (domain !== lastDomain) return;
                 lastStatus = 2;
                 setUI('fail-bypass', iconWarn + '<span>验证超时，但您可以尝试强行访问</span>', 'input-hint error');
             }
