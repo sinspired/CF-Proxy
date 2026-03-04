@@ -164,7 +164,7 @@ function getHtml(host) {
         @media (prefers-color-scheme: dark) {
             :root { 
                 --primary: #ffffff; --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666; 
-                --line: rgba(255, 255, 255, 0.29); 
+                --line: rgba(255, 255, 255, 0.20); 
                 --capsule-bg: rgba(255,255,255,0.08); 
             }
         }
@@ -250,7 +250,7 @@ function getHtml(host) {
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             transition: font-size 0.3s ease;
         }
-        .input-field::placeholder { color: var(--text-light); opacity: 0.5; font-family: inherit; }
+        .input-field::placeholder { color: var(--text-light); opacity: 0.6; font-family: inherit; }
 
         /* 右侧复制按钮 */
         .copy-btn {
