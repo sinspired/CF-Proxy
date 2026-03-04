@@ -11,6 +11,35 @@ addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
 });
 
+// 新增：HTML 节点重写器，用于将页面内的相对链接改为代理链接
+class DOMRewriter {
+    constructor(proxyOrigin, targetBaseUrl) {
+        this.proxyOrigin = proxyOrigin;
+        this.targetBaseUrl = targetBaseUrl;
+    }
+    rewrite(element, attr) {
+        const val = element.getAttribute(attr);
+        // 忽略空值、锚点、JS脚本和 Base64 图片
+        if (!val || val.startsWith('javascript:') || val.startsWith('mailto:') || val.startsWith('data:') || val.startsWith('#')) return;
+        try {
+            // 将相对路径解析为目标域的绝对路径 (如 /index.php -> https://xyy.com/index.php)
+            const absUrl = new URL(val, this.targetBaseUrl).toString();
+            // 拼上代理的前缀
+            element.setAttribute(attr, `${this.proxyOrigin}/${absUrl}`);
+        } catch (e) {
+            // 解析失败（比如存在语法错误的URL）则保持原样
+        }
+    }
+    element(element) {
+        if (element.tagName === 'a') this.rewrite(element, 'href');
+        if (element.tagName === 'img') this.rewrite(element, 'src');
+        if (element.tagName === 'link') this.rewrite(element, 'href');
+        if (element.tagName === 'script') this.rewrite(element, 'src');
+        if (element.tagName === 'form') this.rewrite(element, 'action');
+        if (element.tagName === 'iframe') this.rewrite(element, 'src');
+    }
+}
+
 async function handleRequest(request) {
     const url = new URL(request.url);
 
@@ -21,17 +50,14 @@ async function handleRequest(request) {
     if (url.pathname === '/favicon.ico' || url.pathname === '/favicon.svg') {
         return new Response(getLogoSvg(), { headers: { 'Content-Type': 'image/svg+xml' } });
     }
-
     if (url.pathname === '/preview.png') {
         return fetch(`${RAW_URL}/preview.png`);
     }
-
     if (url.pathname === '/CF-Proxy_OG.png') {
         return fetch(`${RAW_URL}/CF-Proxy_OG.png`);
     }
 
-
-    // 2. 内部 API: 纯 Server-Side 网络连通性验证 (支持 IPv4 + IPv6，无视客户端本地污染)
+    // 2. 内部 API: 纯 Server-Side 网络连通性验证
     if (url.pathname === '/__proxy_check') {
         const domain = url.searchParams.get('domain');
         if (!domain) return new Response(JSON.stringify({ Status: -1, msg: 'Missing domain' }), { status: 400 });
@@ -69,6 +95,32 @@ async function handleRequest(request) {
 
     // 3. 代理逻辑解析
     let actualUrlStr = url.pathname.slice(1) + url.search;
+
+    // === 【新增核心修复：Referer 子路径补偿】 ===
+    // 用于修复页面内 JS 发起的相对路径 AJAX 请求，或 CSS 文件内未被 HTMLRewriter 拦截的相对资源
+    const referer = request.headers.get('Referer');
+    // 如果存在 Referer 且当前请求看起来像是一个相对路径资源 (没有 http 前缀)
+    if (referer && !actualUrlStr.startsWith('http')) {
+        try {
+            const refererUrl = new URL(referer);
+            // 只有当请求是由我们的代理服务发出的（且不在主页）
+            if (refererUrl.hostname === url.hostname && refererUrl.pathname.length > 1) {
+                let refTarget = refererUrl.pathname.slice(1);
+                if (!refTarget.startsWith('http')) {
+                    if (refTarget.includes('.')) refTarget = 'https://' + refTarget;
+                }
+                const baseTargetUrl = new URL(refTarget);
+                // 把类似于 /index.php 组合拼装回真实域名的地址
+                const resolvedTarget = new URL(url.pathname + url.search, baseTargetUrl).toString();
+                // 自动纠正：302 重定向到正确的代理地址
+                return Response.redirect(`${url.origin}/${resolvedTarget}`, 302);
+            }
+        } catch (e) {
+            // 解析失败忽略，继续走原有流程
+        }
+    }
+    // ============================================
+
     // 智能补全协议逻辑
     if (!actualUrlStr.startsWith('http')) {
         if (actualUrlStr.includes('.') && !actualUrlStr.startsWith('favicon')) {
@@ -103,7 +155,7 @@ async function handleRequest(request) {
             headers: newHeaders,
             method: request.method,
             body: request.body,
-            redirect: 'manual'
+            redirect: 'manual' // 手动处理重定向非常关键
         }));
 
         // 处理重定向，保持在代理路径下
@@ -122,11 +174,23 @@ async function handleRequest(request) {
         responseHeaders.delete('Content-Security-Policy');
         responseHeaders.delete('X-Frame-Options');
 
-        return new Response(response.body, {
+        let finalResponse = new Response(response.body, {
             status: response.status,
             statusText: response.statusText,
             headers: responseHeaders
         });
+
+        // === 【新增核心修复：实时重写 HTML 中的链接】 ===
+        const contentType = responseHeaders.get('Content-Type') || '';
+        if (contentType.toLowerCase().includes('text/html')) {
+            // 当内容是网页时，通过 HTMLRewriter 重写所有的资源链接和 a 标签，使之保持在代理下
+            finalResponse = new HTMLRewriter()
+                .on('a, img, link, script, form, iframe', new DOMRewriter(url.origin, targetUrl.toString()))
+                .transform(finalResponse);
+        }
+        // ===============================================
+
+        return finalResponse;
     } catch (e) {
         return new Response(getErrorHtml(e.message, actualUrlStr), {
             status: 500,
