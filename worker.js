@@ -184,15 +184,19 @@ function getHtml(host) {
     <title>${SITE_NAME}</title>
     <meta name="description" content="基于 Cloudflare Workers 的极简通用代理加速服务。">
     
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="${SITE_NAME}">
-    <meta property="og:description" content="跨越边界，访问任意 URL。">
-    <meta property="og:url" content="https://${host}">
-    <meta property="og:image" content="https://${host}/CF-Proxy_OG.png">
-    <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    
+    <!-- Open Graph -->
+    <meta property="og:title" content="${SITE_NAME}" />
+    <meta property="og:description" content="跨越边界，访问任意 URL。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://${host}/" />
+    <meta property="og:image" content="https://${host}/CF-Proxy_OG.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${SITE_NAME}" />
+    <meta name="twitter:description" content="跨越边界，访问任意 URL。" />
+    <meta name="twitter:image" content="https://${host}/CF-Proxy_OG.png" />
+
     <style>
         :root {
             --primary: #000000; --bg: #ffffff; --text: #111111; --text-light: #888888; --line: #c9c9c9;
