@@ -364,18 +364,19 @@ function getHtml(host) {
         const el = (id) => document.getElementById(id);
         
         const setUI = (state, hintHTML, hintClass = 'input-hint') => {
-            const showElements = state !== 'reset';
-            // 同步展现左侧胶囊与右侧复制按钮，保持视觉平衡
-            el('capsule').classList.toggle('active', showElements);
-            el('divider').classList.toggle('active', showElements);
-            el('copyBtn').classList.toggle('active', showElements);
+            // 【核心修改】只在云端确实解析成功（或允许放行）时，才展现左侧胶囊和右侧复制按钮
+            const isResolved = state === 'ok' || state === 'fail-bypass';
             
-            // 主按钮仅在网络检测通过时解禁
-            el('mainBtn').classList.toggle('ready', state === 'ok' || state === 'fail-bypass');
+            el('capsule').classList.toggle('active', isResolved);
+            el('divider').classList.toggle('active', isResolved);
+            el('copyBtn').classList.toggle('active', isResolved);
+            
+            // 主按钮的点击状态也同步受控
+            el('mainBtn').classList.toggle('ready', isResolved);
             
             const dot = el('dot');
             dot.className = state === 'checking' ? 'status-dot dot-checking' : 
-                            state === 'ok' ? 'status-dot dot-ok' : 'status-dot';
+                            isResolved ? 'status-dot dot-ok' : 'status-dot';
             
             const hint = el('inputHint');
             hint.innerHTML = hintHTML; 
@@ -403,6 +404,7 @@ function getHtml(host) {
             const isDomain = domain.includes('.') && domain.split('.').pop().length >= 2;
             
             if (isDomain) {
+                // 如果域名没变且已经校验过了，不再重复触发 UI 抖动和请求
                 if (domain === lastDomain && lastStatus !== 0) return; 
 
                 lastDomain = domain; lastStatus = 0;
@@ -422,7 +424,7 @@ function getHtml(host) {
                 const resp = await fetch(\`/__proxy_check?domain=\${encodeURIComponent(domain)}\`);
                 const { Status } = await resp.json();
                 
-                // 【防御竞态条件 Bug】: 如果网络返回时，用户已经在输入框改了别的域名，直接丢弃这个废弃的结果
+                // 防御竞态条件: 如果网络返回时，用户已经在输入框改了别的域名，直接丢弃该废弃结果
                 if (domain !== lastDomain) return;
 
                 if (Status === 0) {
