@@ -139,29 +139,37 @@ function getHtml(host) {
 
     <style>
         :root {
-            /* 浅色模式：黑白极简 */
-            --primary: #000000;          /* 纯黑 */
-            --primary-hover: #333333;    /* 深灰 Hover */
+            /* 浅色模式变量 */
+            --primary: #000000;
+            --primary-hover: #333333;
             --bg: #ffffff;
             --text: #111111;
             --text-light: #666666;
             --line: #e5e5e5;
-            --disabled: #d1d5db;         /* 浅灰色用于禁用状态 */
-            --btn-text: #ffffff;         /* 按钮文字色 */
             --error: #ef4444;
+            
+            /* 按钮文字色 */
+            --btn-text: #ffffff;
+            
+            --btn-disabled-bg: #e5e5e5;  /* 浅灰背景 */
+            --btn-disabled-text: #999999; /* 深灰文字 */
         }
 
         @media (prefers-color-scheme: dark) {
             :root {
-                /* 深色模式：反转 */
-                --primary: #ffffff;      /* 纯白 */
-                --primary-hover: #e5e5e5; /* 浅灰 Hover */
-                --bg: #0a0a0a;           /* 近似黑背景 */
+                /* 深色模式变量 */
+                --primary: #ffffff;
+                --primary-hover: #e5e5e5;
+                --bg: #0a0a0a;
                 --text: #ffffff;
                 --text-light: #888888;
                 --line: #333333;
-                --disabled: #333333;     /* 深灰色用于禁用状态 */
-                --btn-text: #000000;     /* 按钮文字色变黑 */
+                
+                --btn-text: #000000;
+                
+                /* 深色模式下的禁用颜色 */
+                --btn-disabled-bg: #333333;   /* 深灰背景 */
+                --btn-disabled-text: #888888; /* 浅灰文字 */
             }
         }
 
@@ -238,7 +246,6 @@ function getHtml(host) {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
-        /* 聚焦时使用主色（黑或白） */
         .input-field:focus {
             border-bottom-color: var(--primary);
         }
@@ -267,7 +274,7 @@ function getHtml(host) {
 
         .btn-go {
             background: var(--primary);
-            color: var(--btn-text); /* 按钮文字颜色根据模式反转 */
+            color: var(--btn-text);
             border: none;
             padding: 14px 36px;
             font-size: 1rem;
@@ -289,11 +296,12 @@ function getHtml(host) {
             transform: scale(0.98);
         }
 
-        /* 禁用状态样式 */
+        /* 禁用状态样式*/
         .btn-go:disabled {
-            background-color: var(--disabled);
+            background-color: var(--btn-disabled-bg); /* 使用专门的禁用背景 */
+            color: var(--btn-disabled-text);          /* 使用专门的禁用文字色 */
             cursor: not-allowed;
-            opacity: 0.5;
+            opacity: 1; /* 移除透明度，完全靠颜色控制 */
             transform: none;
         }
 
