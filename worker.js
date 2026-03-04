@@ -27,13 +27,7 @@ async function handleRequest(request) {
     }
 
     if (url.pathname === '/CF-Proxy_OG.png') {
-        const res = await fetch(`${RAW_URL}/CF-Proxy_OG.png`);
-        return new Response(res.body, {
-            headers: {
-                'Content-Type': 'image/png',
-                'Cache-Control': 'public, max-age=86400',
-            }
-        });
+        return fetch(`${RAW_URL}/CF-Proxy_OG.png`);
     }
 
 
