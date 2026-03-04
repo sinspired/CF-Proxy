@@ -11,7 +11,7 @@ addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
 });
 
-// 新增：HTML 节点重写器，用于将页面内的相对链接改为代理链接
+// HTML 节点重写器，用于将页面内的相对链接改为代理链接
 class DOMRewriter {
     constructor(proxyOrigin, targetBaseUrl) {
         this.proxyOrigin = proxyOrigin;
@@ -96,7 +96,7 @@ async function handleRequest(request) {
     // 3. 代理逻辑解析
     let actualUrlStr = url.pathname.slice(1) + url.search;
 
-    // === 【新增核心修复：Referer 子路径补偿】 ===
+    // Referer 子路径补偿
     // 用于修复页面内 JS 发起的相对路径 AJAX 请求，或 CSS 文件内未被 HTMLRewriter 拦截的相对资源
     const referer = request.headers.get('Referer');
     // 如果存在 Referer 且当前请求看起来像是一个相对路径资源 (没有 http 前缀)
@@ -119,7 +119,6 @@ async function handleRequest(request) {
             // 解析失败忽略，继续走原有流程
         }
     }
-    // ============================================
 
     // 智能补全协议逻辑
     if (!actualUrlStr.startsWith('http')) {
@@ -180,7 +179,7 @@ async function handleRequest(request) {
             headers: responseHeaders
         });
 
-        // === 【新增核心修复：实时重写 HTML 中的链接】 ===
+        // 实时重写 HTML 中的链接
         const contentType = responseHeaders.get('Content-Type') || '';
         if (contentType.toLowerCase().includes('text/html')) {
             // 当内容是网页时，通过 HTMLRewriter 重写所有的资源链接和 a 标签，使之保持在代理下
@@ -188,7 +187,6 @@ async function handleRequest(request) {
                 .on('a, img, link, script, form, iframe', new DOMRewriter(url.origin, targetUrl.toString()))
                 .transform(finalResponse);
         }
-        // ===============================================
 
         return finalResponse;
     } catch (e) {
