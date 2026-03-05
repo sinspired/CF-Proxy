@@ -1,4 +1,4 @@
-ba*
+/*
  * CF-Proxy: 通用代理服务，基于 Cloudflare Workers 实现的无服务器代理加速解决方案，支持访问被墙或受限的 URL。
  * Repo: https://github.com/sinspired/CF-Proxy
  */
