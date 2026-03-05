@@ -7,6 +7,12 @@ const REPO_URL = "https://github.com/sinspired/CF-Proxy";
 const RAW_URL = "https://raw.githubusercontent.com/sinspired/CF-Proxy/main";
 const SITE_NAME = "CF Proxy - 通用代理加速";
 
+// 需要注入 GitHub Token 的主机列表
+const GITHUB_HOSTS = ['api.github.com', 'uploads.github.com'];
+
+// 需要手动处理的重定向状态码
+const REDIRECT_CODES = new Set([301, 302, 303, 307, 308]);
+
 addEventListener('fetch', event => {
     event.respondWith(handleRequest(event.request));
 });
@@ -64,46 +70,37 @@ async function handleRequest(request) {
 
         try {
             const hostname = domain.split(':')[0];
-            const headers = { 'accept': 'application/dns-json' };
+            const dnsHeaders = { 'accept': 'application/dns-json' };
 
             const [ipv4Resp, ipv6Resp] = await Promise.all([
-                fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=A`, { headers }),
-                fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=AAAA`, { headers })
+                fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=A`, { headers: dnsHeaders }),
+                fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=AAAA`, { headers: dnsHeaders })
             ]);
 
-            const ipv4 = await ipv4Resp.json();
-            const ipv6 = await ipv6Resp.json();
+            const [ipv4, ipv6] = await Promise.all([ipv4Resp.json(), ipv6Resp.json()]);
 
             const hasIpv4 = ipv4.Status === 0 && ipv4.Answer && ipv4.Answer.length > 0;
             const hasIpv6 = ipv6.Status === 0 && ipv6.Answer && ipv6.Answer.length > 0;
+            const status = (hasIpv4 || hasIpv6) ? 0 : 3;
 
-            if (hasIpv4 || hasIpv6) {
-                return new Response(JSON.stringify({ Status: 0 }), {
-                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-                });
-            } else {
-                return new Response(JSON.stringify({ Status: 3 }), {
-                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-                });
-            }
+            return new Response(JSON.stringify({ Status: status }), {
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
         } catch (e) {
             return new Response(JSON.stringify({ Status: -1, error: e.message }), {
                 headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
         }
     }
-    
-    // 测试github token
+
+    // 测试 GitHub Token 配置状态
     if (url.pathname === '/__debug_gh') {
-        const ghToken = (typeof globalThis.GH_TOKEN === 'string' && globalThis.GH_TOKEN.trim())
-            ? globalThis.GH_TOKEN.trim()
-            : null;
-        
+        const ghToken = getGhToken();
         const info = {
             token_configured: !!ghToken,
             token_prefix: ghToken ? ghToken.substring(0, 8) + '...' : null, // 只暴露前8位用于确认
         };
-    
+
         // 如果 token 存在，实际测一下 GitHub API 的剩余配额
         if (ghToken) {
             try {
@@ -115,16 +112,16 @@ async function handleRequest(request) {
                 });
                 const data = await resp.json();
                 info.rate_limit = data.rate;
-            } catch(e) {
+            } catch (e) {
                 info.rate_limit_error = e.message;
             }
         }
-    
+
         return new Response(JSON.stringify(info, null, 2), {
             headers: { 'Content-Type': 'application/json' }
         });
     }
-    
+
     // 3. 代理逻辑解析
     let actualUrlStr = url.pathname.slice(1) + url.search;
 
@@ -173,14 +170,9 @@ async function handleRequest(request) {
         ['cf-connecting-ip', 'cf-ipcountry', 'x-forwarded-for', 'x-real-ip'].forEach(h => newHeaders.delete(h));
 
         // GitHub Token 注入
-        const GITHUB_HOSTS = ['api.github.com', 'uploads.github.com'];
-        
         if (GITHUB_HOSTS.includes(targetUrl.hostname)) {
             // 使用 globalThis 安全访问 Workers 环境变量，避免 ReferenceError
-            const ghToken = (typeof globalThis.GH_TOKEN === 'string' && globalThis.GH_TOKEN.trim())
-                ? globalThis.GH_TOKEN.trim()
-                : null;
-        
+            const ghToken = getGhToken();
             if (ghToken) {
                 newHeaders.set('Authorization', `Bearer ${ghToken}`);
                 console.log('[CF-Proxy] GitHub Token injected for:', targetUrl.hostname);
@@ -204,7 +196,7 @@ async function handleRequest(request) {
         }));
 
         // 处理重定向，保持在代理路径下
-        if ([301, 302, 303, 307, 308].includes(response.status)) {
+        if (REDIRECT_CODES.has(response.status)) {
             const location = response.headers.get('location');
             if (location) {
                 const redirectUrl = new URL(location, targetUrl).toString();
@@ -241,6 +233,13 @@ async function handleRequest(request) {
             headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
     }
+}
+
+// 安全读取 GitHub Token 环境变量（避免 ReferenceError）
+function getGhToken() {
+    return (typeof globalThis.GH_TOKEN === 'string' && globalThis.GH_TOKEN.trim())
+        ? globalThis.GH_TOKEN.trim()
+        : null;
 }
 
 function getLogoSvg() {
@@ -350,7 +349,7 @@ function getHtml(host) {
             font-size: 0.8rem; color: var(--text-light);
             transition: all 0.3s ease; pointer-events: none; white-space: nowrap;
             display: flex; align-items: center; gap: 4px;
-            max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+            max-width: 100%; overflow: hidden; text-overflow: ellipsis;
         }
         .input-hint.error { color: var(--error); }
         .input-hint.success { color: var(--success); }
@@ -391,7 +390,7 @@ function getHtml(host) {
             width: 100%; min-width: 0; background: transparent; border: none; outline: none;
             padding: 4px 0; font-size: 1.15rem; color: var(--text);
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-             transition: font-size 0.3s ease, color 0.15s ease; }
+            transition: font-size 0.3s ease, color 0.15s ease;
         }
         .input-field::placeholder { color: var(--text-light); opacity: 0.6; font-family: inherit; }
 
@@ -509,47 +508,63 @@ function getHtml(host) {
         let lastStatus = 0; // 0:空闲, 1:成功, 2:失败
         const hostOrigin = window.location.origin;
 
+        // 缓存高频访问的 DOM 节点，避免重复查询
+        const DOM = {
+            capsule:      document.getElementById('capsule'),
+            divider:      document.getElementById('divider'),
+            copyBtn:      document.getElementById('copyBtn'),
+            mainBtn:      document.getElementById('mainBtn'),
+            dot:          document.getElementById('dot'),
+            inputHint:    document.getElementById('inputHint'),
+            targetUrl:    document.getElementById('targetUrl'),
+            btnText:      document.getElementById('btnText'),
+            copyTooltip:  document.getElementById('copyTooltip'),
+            capsuleTooltip: document.getElementById('capsuleTooltip'),
+            copyIcon:     document.getElementById('copyIcon'),
+            checkIcon:    document.getElementById('checkIcon'),
+        };
+
         const iconSuccess = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
         const iconWarn = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
-
-        const el = (id) => document.getElementById(id);
 
         // UI 状态控制
         const setUI = (state, hintHTML, hintClass = 'input-hint') => {
             const isResolved = state === 'ok' || state === 'fail-bypass';
 
-            el('capsule').classList.toggle('active', isResolved);
-            el('divider').classList.toggle('active', isResolved);
-            el('copyBtn').classList.toggle('active', isResolved);
-            el('mainBtn').classList.toggle('ready', isResolved);
+            DOM.capsule.classList.toggle('active', isResolved);
+            DOM.divider.classList.toggle('active', isResolved);
+            DOM.copyBtn.classList.toggle('active', isResolved);
+            DOM.mainBtn.classList.toggle('ready', isResolved);
 
-            el('dot').className = state === 'checking' ? 'status-dot dot-checking' :
-                                  isResolved ? 'status-dot dot-ok' : 'status-dot';
+            if (state === 'checking') {
+                DOM.dot.className = 'status-dot dot-checking';
+            } else if (isResolved) {
+                DOM.dot.className = 'status-dot dot-ok';
+            } else {
+                DOM.dot.className = 'status-dot';
+            }
 
-            el('inputHint').innerHTML = hintHTML;
-            el('inputHint').className = hintClass;
+            DOM.inputHint.innerHTML = hintHTML;
+            DOM.inputHint.className = hintClass;
 
             // 解析完成：滚到末尾
             if (isResolved) {
-                const inputEl = el('targetUrl');
                 requestAnimationFrame(() => {
-                    inputEl.scrollLeft = inputEl.scrollWidth;
-                    // el('mainBtn').focus();
+                    DOM.targetUrl.scrollLeft = DOM.targetUrl.scrollWidth;
                 });
             }
         };
 
         // 输入监控与初步验证
         function checkInput() {
-            const inputEl = el('targetUrl');
-            const val = inputEl.value.trim();
+            const val = DOM.targetUrl.value.trim();
 
             // 输入过程中始终显示末尾
-            inputEl.scrollLeft = inputEl.scrollWidth;
+            DOM.targetUrl.scrollLeft = DOM.targetUrl.scrollWidth;
 
             const cleanPath = val.split('?')[0].split('#')[0];
             const isDownload = /\\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
-            el('btnText').textContent = isDownload ? '加速下载' : '加速访问';
+            DOM.btnText.textContent = isDownload ? '加速下载' : '加速访问';
 
             if (!val) {
                 lastDomain = ''; lastStatus = 0;
@@ -557,14 +572,17 @@ function getHtml(host) {
                 return;
             }
 
-            el('copyTooltip').textContent = hostOrigin + '/' + (val.startsWith('http') ? val : 'https://' + val);
-            el('capsuleTooltip').textContent = hostOrigin + '/';
-
             const domain = val.replace(/^https?:\\/\\//, '').split('/')[0];
             const isDomain = domain.includes('.') && domain.split('.').pop().length >= 2;
 
             if (isDomain) {
+                // 同域名且已有结果时跳过重复验证
                 if (domain === lastDomain && lastStatus !== 0) return;
+
+                // 更新 tooltip 内容
+                const fullUrl = val.startsWith('http') ? val : 'https://' + val;
+                DOM.copyTooltip.textContent = hostOrigin + '/' + fullUrl;
+                DOM.capsuleTooltip.textContent = hostOrigin + '/';
 
                 lastDomain = domain; lastStatus = 0;
                 setUI('checking', '<span>正在由云端解析验证网址...</span>');
@@ -577,7 +595,7 @@ function getHtml(host) {
             }
         }
 
-        // 使用dns-over-https在云端验证域名解析，绕过本地 DNS 污染，确保用户输入的地址确实可达
+        // 使用 dns-over-https 在云端验证域名解析，绕过本地 DNS 污染，确保用户输入的地址确实可达
         async function verifyDomain(domain) {
             try {
                 const resp = await fetch(\`/__proxy_check?domain=\${encodeURIComponent(domain)}\`);
@@ -601,12 +619,12 @@ function getHtml(host) {
 
         // 复制拼接后的加速链接到剪贴板，并显示反馈
         function copyResult() {
-            navigator.clipboard.writeText(el('copyTooltip').textContent).then(() => {
-                el('copyIcon').style.display = 'none';
-                el('checkIcon').style.display = 'block';
+            navigator.clipboard.writeText(DOM.copyTooltip.textContent).then(() => {
+                DOM.copyIcon.style.display = 'none';
+                DOM.checkIcon.style.display = 'block';
                 setTimeout(() => {
-                    el('copyIcon').style.display = 'block';
-                    el('checkIcon').style.display = 'none';
+                    DOM.copyIcon.style.display = 'block';
+                    DOM.checkIcon.style.display = 'none';
                 }, 1000);
             });
         }
@@ -614,7 +632,7 @@ function getHtml(host) {
         // 表单提交处理，打开加速后的链接
         function handleProxy(e) {
             e.preventDefault();
-            const val = el('targetUrl').value.trim();
+            const val = DOM.targetUrl.value.trim();
             if (val) window.open(hostOrigin + '/' + val, '_blank');
         }
     </script>
