@@ -141,9 +141,23 @@ async function handleRequest(request) {
         ['cf-connecting-ip', 'cf-ipcountry', 'x-forwarded-for', 'x-real-ip'].forEach(h => newHeaders.delete(h));
 
         // GitHub Token 注入
-        if (targetUrl.hostname === 'api.github.com' && typeof GH_TOKEN !== 'undefined') {
-            newHeaders.set('Authorization', `Bearer ${GH_TOKEN}`);
-            newHeaders.set('User-Agent', 'CF-Proxy/Worker');
+        const GITHUB_HOSTS = ['api.github.com', 'uploads.github.com'];
+        
+        if (GITHUB_HOSTS.includes(targetUrl.hostname)) {
+            // 使用 globalThis 安全访问 Workers 环境变量，避免 ReferenceError
+            const ghToken = (typeof globalThis.GH_TOKEN === 'string' && globalThis.GH_TOKEN.trim())
+                ? globalThis.GH_TOKEN.trim()
+                : null;
+        
+            if (ghToken) {
+                newHeaders.set('Authorization', `Bearer ${ghToken}`);
+                console.log('[CF-Proxy] GitHub Token injected for:', targetUrl.hostname);
+            } else {
+                // Token 未配置或为空，记录警告（在 Workers Dashboard 日志可见）
+                console.warn('[CF-Proxy] GH_TOKEN is not set or empty, GitHub rate limit may apply.');
+            }
+            // GitHub API 要求必须有合法的 User-Agent
+            newHeaders.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36');
         } else {
             if (!newHeaders.get('User-Agent')) {
                 newHeaders.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36');
