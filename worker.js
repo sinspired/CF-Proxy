@@ -386,13 +386,21 @@ function getHtml(host) {
             transition: color 0.6s ease, font-size 0.3s ease;
         }
 
+        /* 切换按钮 + 悬浮提示 */
+        .globe-wrap {
+            position: relative;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 0.2rem;
+        }
+
         /* 地球切换按钮 */
         .globe-toggle {
             background: none;
             border: none;
             cursor: pointer;
             padding: 0;
-            margin-bottom: 0.2rem;
             display: block;
             outline: none;
             transition: transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
@@ -413,6 +421,39 @@ function getHtml(host) {
             border-radius: 50%;
         }
 
+        /* ── 悬停提示（绝对定位，不占文档流空间）──────── */
+        .globe-hint {
+            position: absolute;
+            bottom: calc(100% + 14px);
+            left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            opacity: 0;
+            transition: opacity 0.35s ease, transform 0.35s ease;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .globe-wrap:hover .globe-hint {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .globe-hint-time {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.78rem;
+            letter-spacing: 0.10em;
+            color: var(--text);
+            transition: color 0.6s ease;
+        }
+        .globe-hint-action {
+            font-size: 0.68rem;
+            letter-spacing: 0.06em;
+            color: var(--text-light);
+            transition: color 0.6s ease;
+        }
+        
         /* 轨道系统旋转由 JS 驱动（SVG 属性动画）──*/
         /* 使用 rotate(angle, 0, 0) SVG 属性而非 CSS transform，
            明确以 SVG 坐标原点（球心）为旋转轴，无跨浏览器歧义 */
@@ -880,78 +921,83 @@ function getHtml(host) {
       ─ 点击时地球短暂加速，轨道翻转180°
       ─ 太阳落下 / 月亮升起，完成日升月落叙事 -->
 
-        <button class="globe-toggle" onclick="toggleTheme()" aria-label="切换深浅色主题" title="明/暗模式">
+    <div class="globe-wrap">
+    <button class="globe-toggle" onclick="toggleTheme()" aria-label="切换深浅色主题">
 
-            <svg id="globeSvg" viewBox="-44 -44 88 88" width="88" height="88" style="overflow:visible"
-                aria-hidden="true">
-                <defs>
-                    <!-- 太阳光晕模糊 -->
-                    <filter id="gfSun" x="-120%" y="-120%" width="340%" height="340%">
-                        <feGaussianBlur stdDeviation="3.5" result="blur" />
-                        <feMerge>
-                            <feMergeNode in="blur" />
-                            <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                    </filter>
-                    <!-- 月亮光晕模糊 -->
-                    <filter id="gfMoon" x="-120%" y="-120%" width="340%" height="340%">
-                        <feGaussianBlur stdDeviation="3" result="blur" />
-                        <feMerge>
-                            <feMergeNode in="blur" />
-                            <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                    </filter>
-                    <!-- 月牙遮罩：右上方偏移的黑圆盖住圆面 -->
-                    <mask id="gMoonMask">
-                        <rect x="-10" y="-10" width="20" height="20" fill="white" />
-                        <circle cx="2.8" cy="-2" r="4.5" fill="black" />
-                    </mask>
-                </defs>
+        <svg id="globeSvg" viewBox="-44 -44 88 88" width="88" height="88" style="overflow:visible" aria-hidden="true">
+            <defs>
+                <!-- 太阳光晕模糊 -->
+                <filter id="gfSun" x="-120%" y="-120%" width="340%" height="340%">
+                    <feGaussianBlur stdDeviation="3.5" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+                <!-- 月亮光晕模糊 -->
+                <filter id="gfMoon" x="-120%" y="-120%" width="340%" height="340%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+                <!-- 月牙遮罩：右上方偏移的黑圆盖住圆面 -->
+                <mask id="gMoonMask">
+                    <rect x="-10" y="-10" width="20" height="20" fill="white" />
+                    <circle cx="2.8" cy="-2" r="4.5" fill="black" />
+                </mask>
+            </defs>
 
-                <!-- 轨道虚线环 -->
-                <circle cx="0" cy="0" r="40" class="g-ring" />
+            <!-- 轨道虚线环 -->
+            <circle cx="0" cy="0" r="40" class="g-ring" />
 
-                <!--  轨道系统（整体旋转 180° 切换主题） -->
-                <g id="gOrbit">
+            <!--  轨道系统（整体旋转 180° 切换主题） -->
+            <g id="gOrbit">
 
-                    <!-- 太阳（初始在顶部，明亮模式可见）-->
-                    <g transform="translate(0,-40)">
-                        <circle cx="0" cy="0" r="13" class="g-sun-aura" filter="url(#gfSun)" />
-                        <circle cx="0" cy="0" r="6.5" class="g-sun-core" />
-                        <!-- 高光点 -->
-                        <circle cx="-2" cy="-2" r="2" fill="rgba(255,255,255,0.28)" style="pointer-events:none" />
-                    </g>
+                <!-- 太阳（初始在顶部，明亮模式可见）-->
+                <g transform="translate(0,-40)">
+                    <circle cx="0" cy="0" r="13" class="g-sun-aura" filter="url(#gfSun)" />
+                    <circle cx="0" cy="0" r="6.5" class="g-sun-core" />
+                    <!-- 高光点 -->
+                    <circle cx="-2" cy="-2" r="2" fill="rgba(255,255,255,0.28)" style="pointer-events:none" />
+                </g>
 
-                    <!-- 月亮（初始在底部，深色模式转至顶部后可见）-->
-                    <g transform="translate(0,40)">
-                        <circle cx="0" cy="0" r="11" class="g-moon-aura" filter="url(#gfMoon)" />
-                        <!-- 月牙：整圆 + mask 裁掉右上偏移圆 -->
-                        <circle cx="0" cy="0" r="5.5" class="g-moon-face" mask="url(#gMoonMask)" />
-                        <!-- 月旁小星 -->
-                        <circle cx="-3.5" cy="-4" r="0.65" class="g-star" />
-                        <circle cx="5" cy="3.2" r="0.5" class="g-star" />
-                        <circle cx="-6" cy="2.8" r="0.45" class="g-star" />
-                    </g>
+                <!-- 月亮（初始在底部，深色模式转至顶部后可见）-->
+                <g transform="translate(0,40)">
+                    <circle cx="0" cy="0" r="11" class="g-moon-aura" filter="url(#gfMoon)" />
+                    <!-- 月牙：整圆 + mask 裁掉右上偏移圆 -->
+                    <circle cx="0" cy="0" r="5.5" class="g-moon-face" mask="url(#gMoonMask)" />
+                    <!-- 月旁小星 -->
+                    <circle cx="-3.5" cy="-4" r="0.65" class="g-star" />
+                    <circle cx="5" cy="3.2" r="0.5" class="g-star" />
+                    <circle cx="-6" cy="2.8" r="0.45" class="g-star" />
+                </g>
 
-                </g><!-- /gOrbit -->
+            </g><!-- /gOrbit -->
 
-                <!--  地球球体  -->
-                <!-- 主圆轮廓 -->
-                <circle cx="0" cy="0" r="26" class="g-globe g-globe-main" />
+            <!--  地球球体  -->
+            <!-- 主圆轮廓 -->
+            <circle cx="0" cy="0" r="26" class="g-globe g-globe-main" />
 
-                <!-- 纬度线：赤道 + 南北回归线（静态，衬托球体） -->
-                <line x1="-26" y1="0" x2="26" y2="0" class="g-globe g-equator" />
-                <ellipse cx="0" cy="-10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
-                <ellipse cx="0" cy="10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
+            <!-- 纬度线：赤道 + 南北回归线（静态，衬托球体） -->
+            <line x1="-26" y1="0" x2="26" y2="0" class="g-globe g-equator" />
+            <ellipse cx="0" cy="-10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
+            <ellipse cx="0" cy="10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
 
-                <!-- 经度线：由 JS 持续驱动，模拟地球绕 Y 轴自转 -->
-                <path id="gL0" class="g-globe g-lng" />
-                <path id="gL1" class="g-globe g-lng" />
-                <path id="gL2" class="g-globe g-lng" />
-                <path id="gL3" class="g-globe g-lng" />
+            <!-- 经度线：由 JS 持续驱动，模拟地球绕 Y 轴自转 -->
+            <path id="gL0" class="g-globe g-lng" />
+            <path id="gL1" class="g-globe g-lng" />
+            <path id="gL2" class="g-globe g-lng" />
+            <path id="gL3" class="g-globe g-lng" />
 
-            </svg>
-        </button>
+        </svg>
+    </button>
+    <div class="globe-hint">
+    <span class="globe-hint-time" id="globeTime"></span>
+    <span class="globe-hint-action" id="globeAction"></span>
+    </div>
+    </div><!-- /globe-wrap -->
 
     <h1>Proxy Everything</h1>
     <p class="tagline">跨越边界，访问任意 URL</p>
@@ -1279,6 +1325,45 @@ function getHtml(host) {
         // 地球同步加速自转：视觉化「旋转带来昼夜更替」
         burstLeft = BURST_FRAMES;
     }
+
+    // 悬停提示（时间 + 操作说明）
+    const globeTimeEl   = document.getElementById('globeTime');
+    const globeActionEl = document.getElementById('globeAction');
+    let   clockTimer    = null;
+
+    function formatTime() {
+        const now = new Date();
+        const hh  = String(now.getHours()).padStart(2, '0');
+        const mm  = String(now.getMinutes()).padStart(2, '0');
+        const ss  = String(now.getSeconds()).padStart(2, '0');
+        return \`\${hh}:\${mm}:\${ss}\`;
+    }
+
+    function updateHint() {
+        globeTimeEl.textContent   = formatTime();
+        // 操作提示随当前模式动态变化
+        const dark = htmlRoot.classList.contains('dark');
+        globeActionEl.textContent = dark ? '切换到白天' : '切换到夜间';
+    }
+
+    function startClock() {
+        updateHint();
+        clockTimer = setInterval(updateHint, 1000);
+    }
+
+    function stopClock() {
+        clearInterval(clockTimer);
+        clockTimer = null;
+    }
+
+    const globeWrap = document.querySelector('.globe-wrap');
+    globeWrap.addEventListener('mouseenter', startClock);
+    globeWrap.addEventListener('mouseleave', stopClock);
+    // 移动端 touch：触摸后短暂显示
+    globeWrap.addEventListener('touchstart', () => {
+        startClock();
+        setTimeout(stopClock, 2500);
+    }, { passive: true });
 
     /* 
         星空背景（深色模式）
