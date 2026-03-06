@@ -302,10 +302,13 @@ function getHtml(host) {
             --text: #111111;
             --text-light: #888888;
             --line: #c9c9c9;
+            --line-focus: rgba(33, 32, 32, 0.374);
             --capsule-bg: rgba(0, 0, 0, 0.04);
             --success: #10b981;
             --error: #ef4444;
             --warn: #f59e0b;
+            --orbit-glow: rgba(245, 158, 11, 0.10);
+            /* 太阳光晕色 */
         }
         
         html.dark {
@@ -314,7 +317,10 @@ function getHtml(host) {
             --text: #f0f0f0;
             --text-light: #666666;
             --line: rgba(255, 255, 255, 0.20);
+            --line-focus: rgba(186, 208, 233, 0.6);
             --capsule-bg: rgba(255, 255, 255, 0.08);
+            --orbit-glow: rgba(147, 197, 253, 0.20);
+            /* 月亮光晕色 */
         }
 
         * {
@@ -425,7 +431,7 @@ function getHtml(host) {
         /* ── 悬停提示（绝对定位，不占文档流空间）──────── */
         .globe-hint {
             position: absolute;
-            bottom: calc(100% + 14px);
+            bottom: calc(100% + 12px);
             left: 50%;
             transform: translateX(-50%) translateY(4px);
             display: flex;
@@ -436,6 +442,13 @@ function getHtml(host) {
             transition: opacity 0.35s ease, transform 0.35s ease;
             pointer-events: none;
             white-space: nowrap;
+
+            /* 卡片 */
+            /* -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--line);
+            padding: 6px 10px;
+            border-radius: 10px; */
         }
         .globe-wrap:hover .globe-hint {
             opacity: 1;
@@ -583,7 +596,9 @@ function getHtml(host) {
         }
 
         .input-group:focus-within {
-            border-color: var(--primary);
+            border-color: var(--line-focus);
+            /* Y轴偏移10px，负扩张半径-8px 抵消四周扩散，使其仅显示在底部 */
+            box-shadow: 0 10px 15px -8px var(--orbit-glow);
         }
 
         .input-wrapper {
@@ -1376,11 +1391,12 @@ function getHtml(host) {
         const ctx = cvs.getContext('2d');
 
         // 生成随机星点数据
-        const stars = Array.from({ length: 130 }, () => ({
+        const stars = Array.from({ length: 140 }, () => ({
             x:  Math.random(),
             y:  Math.random(),
-            r:  Math.random() * 1.1 + 0.25,
-            a:  Math.random() * 0.55 + 0.08,
+            r:  Math.random() * 1.4 + 0.3,
+            a:  Math.random() * 0.6 + 0.1,
+            s: Math.random() * 0.002 + 0.001 // 随机闪烁速度
         }));
 
         function draw() {
@@ -1388,11 +1404,14 @@ function getHtml(host) {
             cvs.height = window.innerHeight;
             ctx.clearRect(0, 0, cvs.width, cvs.height);
             stars.forEach(s => {
+                // 使用 sin 函数配合每个星星独有的速度 s 产生闪烁感
+                const twinkle = Math.sin(Date.now() * s.s + s.x * 100) * 0.25;
                 ctx.beginPath();
                 ctx.arc(s.x * cvs.width, s.y * cvs.height, s.r, 0, Math.PI * 2);
-                ctx.fillStyle = \`rgba(200,210,240,\${s.a})\`;
+                ctx.fillStyle = \`rgba(200, 215, 255, \${Math.max(0.1, s.a + twinkle)})\`;
                 ctx.fill();
             });
+            requestAnimationFrame(draw);
         }
 
         draw();
