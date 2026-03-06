@@ -67,22 +67,17 @@ async function handleRequest(request) {
     if (url.pathname === '/__proxy_check') {
         const domain = url.searchParams.get('domain');
         if (!domain) return new Response(JSON.stringify({ Status: -1, msg: 'Missing domain' }), { status: 400 });
-
         try {
             const hostname = domain.split(':')[0];
             const dnsHeaders = { 'accept': 'application/dns-json' };
-
             const [ipv4Resp, ipv6Resp] = await Promise.all([
                 fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=A`, { headers: dnsHeaders }),
                 fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=AAAA`, { headers: dnsHeaders })
             ]);
-
             const [ipv4, ipv6] = await Promise.all([ipv4Resp.json(), ipv6Resp.json()]);
-
             const hasIpv4 = ipv4.Status === 0 && ipv4.Answer && ipv4.Answer.length > 0;
             const hasIpv6 = ipv6.Status === 0 && ipv6.Answer && ipv6.Answer.length > 0;
             const status = (hasIpv4 || hasIpv6) ? 0 : 3;
-
             return new Response(JSON.stringify({ Status: status }), {
                 headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
@@ -116,7 +111,6 @@ async function handleRequest(request) {
                 info.rate_limit_error = e.message;
             }
         }
-
         return new Response(JSON.stringify(info, null, 2), {
             headers: { 'Content-Type': 'application/json' }
         });
@@ -242,6 +236,7 @@ function getGhToken() {
         : null;
 }
 
+// favicon 使用简洁版本
 function getLogoSvg() {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`;
 }
@@ -251,7 +246,7 @@ function getErrorHtml(errorMsg, targetUrl) {
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>代理访问失败 - ${SITE_NAME}</title>
     <style>
         :root { --bg: #ffffff; --text: #111111; --text-light: #888888; --line: #eaeaea; --error: #ef4444; }
@@ -277,14 +272,14 @@ function getErrorHtml(errorMsg, targetUrl) {
 
 function getHtml(host) {
     return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" id="htmlRoot">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" href="/favicon.ico" type="image/svg+xml">
     <title>${SITE_NAME}</title>
     <meta name="description" content="基于 Cloudflare Workers 的极简通用代理加速服务。">
-    
+
     <!-- Open Graph -->
     <meta property="og:title" content="${SITE_NAME}" />
     <meta property="og:description" content="跨越边界，访问任意 URL。" />
@@ -297,345 +292,967 @@ function getHtml(host) {
     <meta name="twitter:title" content="${SITE_NAME}" />
     <meta name="twitter:description" content="跨越边界，访问任意 URL。" />
     <meta name="twitter:image" content="https://${host}/CF-Proxy_OG.png" />
-
+    <!-- 立即读取系统偏好，防止主题闪烁 -->
+    <script>if(window.matchMedia('(prefers-color-scheme:dark)').matches)document.getElementById('htmlRoot').classList.add('dark')<\/script>
     <style>
         :root {
-            --primary: #000000; --bg: #ffffff; --text: #111111; --text-light: #888888; --line: #c9c9c9;
-            --capsule-bg: rgba(0,0,0,0.04); --success: #10b981; --error: #ef4444; --warn: #f59e0b;
+            --primary: #000000;
+            --bg: #ffffff;
+            --text: #111111;
+            --text-light: #888888;
+            --line: #c9c9c9;
+            --capsule-bg: rgba(0, 0, 0, 0.04);
+            --success: #10b981;
+            --error: #ef4444;
+            --warn: #f59e0b;
         }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --primary: #ffffff; --bg: #0a0a0a; --text: #f0f0f0; --text-light: #666666;
-                --line: rgba(255,255,255,0.20);
-                --capsule-bg: rgba(255,255,255,0.08);
-            }
+        
+        html.dark {
+            --primary: #ffffff;
+            --bg: #0a0a0a;
+            --text: #f0f0f0;
+            --text-light: #666666;
+            --line: rgba(255, 255, 255, 0.20);
+            --capsule-bg: rgba(255, 255, 255, 0.08);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body { overflow-x: hidden; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            overflow-x: hidden;
+        }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg); color: var(--text);
-            min-height: 100vh; min-height: 100dvh;
-            display: flex; flex-direction: column;
-            transition: background 0.4s ease;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.8s ease, color 0.6s ease;
         }
 
+        /* 星空背景（深色专用） */
+        #starField {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0;
+            transition: opacity 1.2s ease;
+        }
+
+        html.dark #starField {
+            opacity: 1;
+        }
+
+        /* 主内容区 */
         .main-container {
-            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            width: 100%; max-width: 640px; margin: 0 auto; text-align: center;
-            padding: 20px 24px 80px; animation: fadeIn 0.8s ease forwards;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+            text-align: center;
+            padding: 20px 24px 80px;
+            animation: fadeIn 0.8s ease forwards;
+            position: relative;
+            z-index: 1;
         }
 
-        .logo-svg { width: 60px; height: 60px; color: var(--primary); margin-bottom: 1.2rem; transition: all 0.3s; }
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.03em;
+            transition: font-size 0.3s ease;
+        }
 
-        h1 { font-size: 2.4rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em; transition: font-size 0.3s ease; }
-        .tagline { color: var(--text-light); font-size: 1.05rem; margin-bottom: 4rem; letter-spacing: -0.01em; transition: font-size 0.3s ease; }
+        .tagline {
+            color: var(--text-light);
+            font-size: 1.05rem;
+            margin-bottom: 4rem;
+            letter-spacing: -0.01em;
+            transition: color 0.6s ease, font-size 0.3s ease;
+        }
 
-        /* --- 输入框区域 --- */
-        form { width: 100%; }
+        /* 地球切换按钮 */
+        .globe-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin-bottom: 1.4rem;
+            display: block;
+            outline: none;
+            transition: transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .globe-toggle:hover {
+            transform: scale(1.06);
+        }
+
+        .globe-toggle:active {
+            transform: scale(0.93);
+        }
+
+        .globe-toggle:focus-visible {
+            outline: 1.5px solid var(--primary);
+            outline-offset: 6px;
+            border-radius: 50%;
+        }
+
+        /* 轨道系统旋转由 JS 驱动（SVG 属性动画）──*/
+        /* 使用 rotate(angle, 0, 0) SVG 属性而非 CSS transform，
+           明确以 SVG 坐标原点（球心）为旋转轴，无跨浏览器歧义 */
+
+        /* 轨道环 */
+        .g-ring {
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 0.8;
+            stroke-dasharray: 2.8 6;
+            stroke-linecap: round;
+            opacity: 0.18;
+            transition: opacity 0.8s ease, stroke 0.8s ease;
+        }
+
+        html.dark .g-ring {
+            opacity: 0.22;
+        }
+
+        /*
+         * 统一可见性逻辑
+         * 规则：轨道顶部天体 = 升起（明亮），底部天体 = 落下（暗淡）
+         * 浅色：太阳在顶(升) → 明亮；月亮在底(落) → 暗淡留影
+         * 深色：月亮在顶(升) → 明亮；太阳在底(落) → 暗淡留影
+         */
+
+        /* 太阳：浅色=升起明亮，深色=落下暗淡 */
+        .g-sun-aura {
+            fill: rgba(245, 158, 11, 0.22);
+            opacity: 1;
+            transition: opacity 0.8s ease;
+        }
+
+        html.dark .g-sun-aura {
+            opacity: 0.08;
+        }
+
+        .g-sun-core {
+            fill: #f59e0b;
+            opacity: 1;
+            transition: fill 0.8s ease, opacity 0.8s ease;
+        }
+
+        html.dark .g-sun-core {
+            fill: #92400e;
+            opacity: 0.18;
+        }
+
+        /* 月亮：浅色=落下暗淡留影，深色=升起明亮 */
+        .g-moon-aura {
+            fill: rgba(147, 197, 253, 0.18);
+            opacity: 0.15;
+            transition: opacity 0.8s ease;
+        }
+
+        html.dark .g-moon-aura {
+            opacity: 1;
+        }
+
+        .g-moon-face {
+            fill: #c8d8ee;
+            opacity: 0.20;
+            transition: opacity 0.8s ease;
+        }
+
+        html.dark .g-moon-face {
+            opacity: 1;
+        }
+
+        /* 星点：浅色=极淡，深色=明亮 */
+        .g-star {
+            fill: #93c5fd;
+            opacity: 0.15;
+            transition: opacity 0.8s ease;
+        }
+
+        html.dark .g-star {
+            opacity: 0.85;
+        }
+
+        /* 地球笔触─────*/
+        .g-globe {
+            fill: none;
+            stroke: var(--primary);
+            stroke-linecap: round;
+            transition: stroke 0.8s ease;
+        }
+
+        .g-globe-main {
+            stroke-width: 1.6;
+        }
+
+        .g-equator {
+            stroke-width: 1.0;
+            stroke-opacity: 0.50;
+        }
+
+        .g-tropic {
+            stroke-width: 0.75;
+            stroke-opacity: 0.28;
+            fill: none;
+        }
+
+        .g-lng {
+            stroke-width: 1.1;
+            fill: none;
+        }
+
+        /* 输入框区域───*/
+        form {
+            width: 100%;
+        }
+
         .input-group {
-            position: relative; display: flex; align-items: center;
-            border-bottom: 1px solid var(--line); margin-bottom: 3.5rem; padding-bottom: 8px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 3.5rem;
+            padding-bottom: 8px;
             transition: border-color 0.4s ease;
         }
-        .input-group:focus-within { border-color: var(--primary); }
-        .input-wrapper { flex: 1; position: relative; display: flex; align-items: center; min-width: 0; }
+
+        .input-group:focus-within {
+            border-color: var(--primary);
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            min-width: 0;
+        }
 
         /* 状态提示文字 */
         .input-hint {
-            position: absolute; top: calc(100% + 12px); left: 0;
-            font-size: 0.8rem; color: var(--text-light);
-            transition: all 0.3s ease; pointer-events: none; white-space: nowrap;
-            display: flex; align-items: center; gap: 4px;
-            max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+            position: absolute;
+            top: calc(100% + 12px);
+            left: 0;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .input-hint.error { color: var(--error); }
-        .input-hint.success { color: var(--success); }
-        .hint-icon { width: 14px; height: 14px; flex-shrink: 0; }
+
+        .input-hint.error {
+            color: var(--error);
+        }
+
+        .input-hint.success {
+            color: var(--success);
+        }
+
+        .hint-icon {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
 
         /* 左侧中转胶囊 */
         .transit-capsule {
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            width: 0; opacity: 0; overflow: hidden; height: 32px;
-            background: var(--capsule-bg); border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 0;
+            opacity: 0;
+            overflow: hidden;
+            height: 32px;
+            background: var(--capsule-bg);
+            border-radius: 6px;
             transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-            cursor: help; color: var(--text-light); position: relative;
-            font-size: 13px; font-weight: 500;
+            cursor: help;
+            color: var(--text-light);
+            position: relative;
+            font-size: 13px;
+            font-weight: 500;
         }
-        .transit-capsule.active { width: 36px; opacity: 1; overflow: visible; }
-        .capsule-text { white-space: nowrap; display: none; }
+
+        .transit-capsule.active {
+            width: 36px;
+            opacity: 1;
+            overflow: visible;
+        }
+
+        .capsule-text {
+            white-space: nowrap;
+            display: none;
+        }
 
         /* 分割线 */
         .divider {
-            width: 2px; height: 16px; background-color: var(--line); border-radius: 1px;
-            margin: 0; opacity: 0; transform: scaleY(0.2);
+            width: 2px;
+            height: 16px;
+            background-color: var(--line);
+            border-radius: 1px;
+            margin: 0;
+            opacity: 0;
+            transform: scaleY(0.2);
             transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .divider.active { opacity: 1; transform: scaleY(1); margin: 0 14px 0 10px; }
+
+        .divider.active {
+            opacity: 1;
+            transform: scaleY(1);
+            margin: 0 14px 0 10px;
+        }
 
         /* 气泡提示 */
         .tooltip {
-            position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -8px) scale(0.95);
-            background: var(--text); color: var(--bg); padding: 6px 10px; border-radius: 6px;
-            font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            pointer-events: none; white-space: nowrap; opacity: 0;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translate(-50%, -8px) scale(0.95);
+            background: var(--text);
+            color: var(--bg);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            pointer-events: none;
+            white-space: nowrap;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 100;
         }
-        .transit-capsule:hover .tooltip, .copy-btn:hover .tooltip { opacity: 1; transform: translate(-50%, -12px) scale(1); }
-        .tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 4px solid transparent; border-top-color: var(--text); }
+
+        .transit-capsule:hover .tooltip,
+        .copy-btn:hover .tooltip {
+            opacity: 1;
+            transform: translate(-50%, -12px) scale(1);
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 4px solid transparent;
+            border-top-color: var(--text);
+        }
 
         .input-field {
-            width: 100%; min-width: 0; background: transparent; border: none; outline: none;
-            padding: 4px 0; font-size: 1.15rem; color: var(--text);
+            width: 100%;
+            min-width: 0;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 4px 0;
+            font-size: 1.15rem;
+            color: var(--text);
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             transition: font-size 0.3s ease, color 0.15s ease;
         }
-        .input-field::placeholder { color: var(--text-light); opacity: 0.6; font-family: inherit; }
+
+        .input-field::placeholder {
+            color: var(--text-light);
+            opacity: 0.6;
+            font-family: inherit;
+        }
 
         /* 右侧复制按钮 */
         .copy-btn {
-            width: 0; opacity: 0; overflow: hidden; height: 32px;
-            background: transparent; border: none; color: var(--text-light);
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); position: relative;
+            width: 0;
+            opacity: 0;
+            overflow: hidden;
+            height: 32px;
+            background: transparent;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
         }
-        .copy-btn.active { width: 32px; opacity: 1; margin-left: 8px; overflow: visible; }
-        .copy-btn:hover { color: var(--text); }
 
-        /* --- 主按钮 --- */
+        .copy-btn.active {
+            width: 32px;
+            opacity: 1;
+            margin-left: 8px;
+            overflow: visible;
+        }
+
+        .copy-btn:hover {
+            color: var(--text);
+        }
+
+        /* 主按钮 */
         .submit-btn {
-            background: var(--primary); color: var(--bg);
-            border: none; padding: 14px 44px; border-radius: 50px;
-            font-size: 0.95rem; font-weight: 500; cursor: pointer;
-            transition: all 0.3s ease; opacity: 0.2; pointer-events: none;
-            display: inline-flex; align-items: center; gap: 10px;
+            background: var(--primary);
+            color: var(--bg);
+            border: none;
+            padding: 14px 44px;
+            border-radius: 50px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease, background 0.8s ease, color 0.6s ease;
+            opacity: 0.2;
+            pointer-events: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
         }
-        .submit-btn.ready { opacity: 1; pointer-events: auto; }
-        .submit-btn.ready:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
 
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-light); transition: background 0.3s; }
-        .dot-checking { background: var(--warn); animation: pulse 1.5s infinite ease-in-out; }
-        .dot-ok { background: var(--success); }
+        .submit-btn.ready {
+            opacity: 1;
+            pointer-events: auto;
+        }
 
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .submit-btn.ready:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+        }
 
-        footer { padding: 30px 20px; font-size: 0.75rem; color: var(--text-light); text-align: center; }
-        footer a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--text-light); transition: opacity 0.2s; }
-        footer a:hover { opacity: 0.7; }
-        .disclaimer { margin-top: 8px; opacity: 0.7; }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-light);
+            transition: background 0.3s;
+        }
 
-        /* 大屏优化 */
+        .dot-checking {
+            background: var(--warn);
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+
+        .dot-ok {
+            background: var(--success);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        footer {
+            padding: 30px 20px;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            transition: color 0.6s ease;
+        }
+
+        footer a {
+            color: var(--text);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--text-light);
+            transition: opacity 0.2s, color 0.6s ease;
+        }
+
+        footer a:hover {
+            opacity: 0.7;
+        }
+
+        .disclaimer {
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+
+        /* 大屏*/
         @media (min-width: 1024px) {
-            .main-container { max-width: 800px; }
-            h1 { font-size: 2.8rem; }
-            .tagline { font-size: 1.15rem; }
-            .input-field { font-size: 1.25rem; }
+            .main-container {
+                max-width: 800px;
+            }
+
+            h1 {
+                font-size: 2.8rem;
+            }
+
+            .tagline {
+                font-size: 1.15rem;
+            }
+
+            .input-field {
+                font-size: 1.25rem;
+            }
         }
 
-        /* 手机端优化 */
+        /* 手机端*/
         @media (max-width: 480px) {
-            h1 { font-size: 2rem; }
-            .tagline { font-size: 0.95rem; margin-bottom: 3rem; }
-            .input-field { font-size: 1rem; }
-            .transit-capsule.active { width: 36px; }
-            .capsule-text { display: none; }
-            .divider.active { margin: 0 10px 0 8px; }
-            .submit-btn { padding: 14px 38px; width: 100%; justify-content: center; }
-            .tooltip { display: none; }
+            h1 {
+                font-size: 2rem;
+            }
+
+            .tagline {
+                font-size: 0.95rem;
+                margin-bottom: 3rem;
+            }
+
+            .input-field {
+                font-size: 1rem;
+            }
+
+            .transit-capsule.active {
+                width: 36px;
+            }
+
+            .capsule-text {
+                display: none;
+            }
+
+            .divider.active {
+                margin: 0 10px 0 8px;
+            }
+
+            .submit-btn {
+                padding: 14px 38px;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .tooltip {
+                display: none;
+            }
         }
     </style>
 </head>
+
 <body>
+
+
+    <!-- 星空画布（深色模式专用）-->
+    <canvas id="starField"></canvas>
+
     <div class="main-container">
-        <div class="logo-svg">${getLogoSvg()}</div>
-        <h1>Proxy Everything</h1>
-        <p class="tagline">跨越边界，访问任意 URL</p>
 
-        <form onsubmit="handleProxy(event)">
-            <div class="input-group">
-                <div id="capsule" class="transit-capsule">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-                        <line x1="6" y1="6" x2="6.01" y2="6"></line>
-                        <line x1="6" y1="18" x2="6.01" y2="18"></line>
-                    </svg>
-                    <span class="capsule-text">Proxy</span>
-                    <div class="tooltip" id="capsuleTooltip">https://${host}/</div>
-                </div>
 
-                <div id="divider" class="divider"></div>
+        <!-- 地球轨道主题切换按钮
+      ─ 地球始终自转（经度线持续旋转）
+      ─ 点击时地球短暂加速，轨道翻转180°
+      ─ 太阳落下 / 月亮升起，完成日升月落叙事 -->
 
-                <div class="input-wrapper">
-                    <input
-                        type="text"
-                        id="targetUrl"
-                        class="input-field"
-                        placeholder="输入目标网址..."
-                        autocomplete="off"
-                        autofocus
-                        oninput="checkInput()"
-                        onfocus="requestAnimationFrame(() => { this.scrollLeft = this.scrollWidth; })"
-                    >
-                    <div id="inputHint" class="input-hint"><span>支持完整 URL 或域名 (如 github.com/sinspired)</span></div>
-                </div>
+        <button class="globe-toggle" onclick="toggleTheme()" aria-label="切换深浅色主题" title="明/暗模式">
 
-                <button type="button" id="copyBtn" class="copy-btn" onclick="copyResult()">
-                    <div class="tooltip" id="copyTooltip">生成完整加速链接</div>
-                    <svg id="copyIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    <svg id="checkIcon" style="display:none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" color="var(--success)" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                </button>
+            <svg id="globeSvg" viewBox="-44 -44 88 88" width="88" height="88" style="overflow:visible"
+                aria-hidden="true">
+                <defs>
+                    <!-- 太阳光晕模糊 -->
+                    <filter id="gfSun" x="-120%" y="-120%" width="340%" height="340%">
+                        <feGaussianBlur stdDeviation="3.5" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    <!-- 月亮光晕模糊 -->
+                    <filter id="gfMoon" x="-120%" y="-120%" width="340%" height="340%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    <!-- 月牙遮罩：右上方偏移的黑圆盖住圆面 -->
+                    <mask id="gMoonMask">
+                        <rect x="-10" y="-10" width="20" height="20" fill="white" />
+                        <circle cx="2.8" cy="-2" r="4.5" fill="black" />
+                    </mask>
+                </defs>
+
+                <!-- 轨道虚线环 -->
+                <circle cx="0" cy="0" r="40" class="g-ring" />
+
+                <!--  轨道系统（整体旋转 180° 切换主题） -->
+                <g id="gOrbit">
+
+                    <!-- 太阳（初始在顶部，明亮模式可见）-->
+                    <g transform="translate(0,-40)">
+                        <circle cx="0" cy="0" r="13" class="g-sun-aura" filter="url(#gfSun)" />
+                        <circle cx="0" cy="0" r="6.5" class="g-sun-core" />
+                        <!-- 高光点 -->
+                        <circle cx="-2" cy="-2" r="2" fill="rgba(255,255,255,0.28)" style="pointer-events:none" />
+                    </g>
+
+                    <!-- 月亮（初始在底部，深色模式转至顶部后可见）-->
+                    <g transform="translate(0,40)">
+                        <circle cx="0" cy="0" r="11" class="g-moon-aura" filter="url(#gfMoon)" />
+                        <!-- 月牙：整圆 + mask 裁掉右上偏移圆 -->
+                        <circle cx="0" cy="0" r="5.5" class="g-moon-face" mask="url(#gMoonMask)" />
+                        <!-- 月旁小星 -->
+                        <circle cx="-3.5" cy="-4" r="0.65" class="g-star" />
+                        <circle cx="5" cy="3.2" r="0.5" class="g-star" />
+                        <circle cx="-6" cy="2.8" r="0.45" class="g-star" />
+                    </g>
+
+                </g><!-- /gOrbit -->
+
+                <!--  地球球体  -->
+                <!-- 主圆轮廓 -->
+                <circle cx="0" cy="0" r="26" class="g-globe g-globe-main" />
+
+                <!-- 纬度线：赤道 + 南北回归线（静态，衬托球体） -->
+                <line x1="-26" y1="0" x2="26" y2="0" class="g-globe g-equator" />
+                <ellipse cx="0" cy="-10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
+                <ellipse cx="0" cy="10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
+
+                <!-- 经度线：由 JS 持续驱动，模拟地球绕 Y 轴自转 -->
+                <path id="gL0" class="g-globe g-lng" />
+                <path id="gL1" class="g-globe g-lng" />
+                <path id="gL2" class="g-globe g-lng" />
+                <path id="gL3" class="g-globe g-lng" />
+
+            </svg>
+        </button>
+
+    <h1>Proxy Everything</h1>
+    <p class="tagline">跨越边界，访问任意 URL</p>
+
+    <form onsubmit="handleProxy(event)">
+        <div class="input-group">
+            <div id="capsule" class="transit-capsule">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                </svg>
+                <span class="capsule-text">Proxy</span>
+                <div class="tooltip" id="capsuleTooltip">https://${host}/</div>
             </div>
 
-            <button type="submit" id="mainBtn" class="submit-btn">
-                <span id="dot" class="status-dot"></span>
-                <span id="btnText">加速访问</span>
+            <div id="divider" class="divider"></div>
+
+            <div class="input-wrapper">
+                <input
+                    type="text"
+                    id="targetUrl"
+                    class="input-field"
+                    placeholder="输入目标网址..."
+                    autocomplete="off"
+                    autofocus
+                    oninput="checkInput()"
+                    onfocus="requestAnimationFrame(() => { this.scrollLeft = this.scrollWidth; })"
+                >
+                <div id="inputHint" class="input-hint"><span>支持完整 URL 或域名 (如 github.com/sinspired)</span></div>
+            </div>
+
+            <button type="button" id="copyBtn" class="copy-btn" onclick="copyResult()">
+                <div class="tooltip" id="copyTooltip">生成完整加速链接</div>
+                <svg id="copyIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <svg id="checkIcon" style="display:none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" color="var(--success)" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </button>
-        </form>
-    </div>
+        </div>
 
-    <footer>
-        <p>Project <a href="${REPO_URL}" target="_blank">CF-Proxy</a> by <a href="https://github.com/sinspired" target="_blank">sinspired</a></p>
-        <p class="disclaimer">仅供技术研究与合法用途使用，请勿用于非法行为</p>
-    </footer>
+        <button type="submit" id="mainBtn" class="submit-btn">
+            <span id="dot" class="status-dot"></span>
+            <span id="btnText">加速访问</span>
+        </button>
+    </form>
+</div>
 
-    <script>
-        let dnsTimer;
-        let lastDomain = '';
-        let lastStatus = 0; // 0:空闲, 1:成功, 2:失败
-        const hostOrigin = window.location.origin;
+<footer>
+    <p>Project <a href="${REPO_URL}" target="_blank">CF-Proxy</a> by <a href="https://github.com/sinspired" target="_blank">sinspired</a></p>
+    <p class="disclaimer">仅供技术研究与合法用途使用，请勿用于非法行为</p>
+</footer>
 
-        // 缓存高频访问的 DOM 节点，避免重复查询
-        const DOM = {
-            capsule:      document.getElementById('capsule'),
-            divider:      document.getElementById('divider'),
-            copyBtn:      document.getElementById('copyBtn'),
-            mainBtn:      document.getElementById('mainBtn'),
-            dot:          document.getElementById('dot'),
-            inputHint:    document.getElementById('inputHint'),
-            targetUrl:    document.getElementById('targetUrl'),
-            btnText:      document.getElementById('btnText'),
-            copyTooltip:  document.getElementById('copyTooltip'),
-            capsuleTooltip: document.getElementById('capsuleTooltip'),
-            copyIcon:     document.getElementById('copyIcon'),
-            checkIcon:    document.getElementById('checkIcon'),
-        };
+<script>
+    let dnsTimer;
+    let lastDomain = '';
+    let lastStatus = 0; // 0:空闲, 1:成功, 2:失败
+    const hostOrigin = window.location.origin;
 
-        const iconSuccess = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-        const iconWarn = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+    // 缓存高频访问的 DOM 节点，避免重复查询
+    const DOM = {
+        capsule:        document.getElementById('capsule'),
+        divider:        document.getElementById('divider'),
+        copyBtn:        document.getElementById('copyBtn'),
+        mainBtn:        document.getElementById('mainBtn'),
+        dot:            document.getElementById('dot'),
+        inputHint:      document.getElementById('inputHint'),
+        targetUrl:      document.getElementById('targetUrl'),
+        btnText:        document.getElementById('btnText'),
+        copyTooltip:    document.getElementById('copyTooltip'),
+        capsuleTooltip: document.getElementById('capsuleTooltip'),
+        copyIcon:       document.getElementById('copyIcon'),
+        checkIcon:      document.getElementById('checkIcon'),
+    };
 
-        // UI 状态控制
-        const setUI = (state, hintHTML, hintClass = 'input-hint') => {
-            const isResolved = state === 'ok' || state === 'fail-bypass';
+    const iconSuccess = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    const iconWarn    = '<svg class="hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
 
-            DOM.capsule.classList.toggle('active', isResolved);
-            DOM.divider.classList.toggle('active', isResolved);
-            DOM.copyBtn.classList.toggle('active', isResolved);
-            DOM.mainBtn.classList.toggle('ready', isResolved);
+    const setUI = (state, hintHTML, hintClass = 'input-hint') => {
+        const isResolved = state === 'ok' || state === 'fail-bypass';
+        DOM.capsule.classList.toggle('active', isResolved);
+        DOM.divider.classList.toggle('active', isResolved);
+        DOM.copyBtn.classList.toggle('active', isResolved);
+        DOM.mainBtn.classList.toggle('ready', isResolved);
+        if (state === 'checking')      DOM.dot.className = 'status-dot dot-checking';
+        else if (isResolved)           DOM.dot.className = 'status-dot dot-ok';
+        else                           DOM.dot.className = 'status-dot';
+        DOM.inputHint.innerHTML  = hintHTML;
+        DOM.inputHint.className  = hintClass;
 
-            if (state === 'checking') {
-                DOM.dot.className = 'status-dot dot-checking';
-            } else if (isResolved) {
-                DOM.dot.className = 'status-dot dot-ok';
-            } else {
-                DOM.dot.className = 'status-dot';
-            }
+        // 解析完成：滚到末尾
+        if (isResolved) requestAnimationFrame(() => { DOM.targetUrl.scrollLeft = DOM.targetUrl.scrollWidth; });
+    };
 
-            DOM.inputHint.innerHTML = hintHTML;
-            DOM.inputHint.className = hintClass;
+    // 输入监控与初步验证
+    function checkInput() {
+        const val = DOM.targetUrl.value.trim();
 
-            // 解析完成：滚到末尾
-            if (isResolved) {
-                requestAnimationFrame(() => {
-                    DOM.targetUrl.scrollLeft = DOM.targetUrl.scrollWidth;
-                });
-            }
-        };
+        // 输入过程中始终显示末尾，方便查看完整 URL
+        DOM.targetUrl.scrollLeft = DOM.targetUrl.scrollWidth;
+        const cleanPath = val.split('?')[0].split('#')[0];
+        const isDownload = /\\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
+        DOM.btnText.textContent = isDownload ? '加速下载' : '加速访问';
+        if (!val) {
+            lastDomain = ''; lastStatus = 0;
+            setUI('reset', '<span>支持完整 URL 或域名 (如 github.com/sinspired)</span>');
+            return;
+        }
+        const domain = val.replace(/^https?:\\/\\//, '').split('/')[0];
+        const isDomain = domain.includes('.') && domain.split('.').pop().length >= 2;
+        if (isDomain) {
+            if (domain === lastDomain && lastStatus !== 0) return;
+            const fullUrl = val.startsWith('http') ? val : 'https://' + val;
+            DOM.copyTooltip.textContent   = hostOrigin + '/' + fullUrl;
+            DOM.capsuleTooltip.textContent = hostOrigin + '/';
+            lastDomain = domain; lastStatus = 0;
+            setUI('checking', '<span>正在由云端解析验证网址...</span>');
+            clearTimeout(dnsTimer);
+            dnsTimer = setTimeout(() => verifyDomain(domain), 400);
+        } else {
+            lastDomain = ''; lastStatus = 0;
+            setUI('reset', iconWarn + '<span>请输入有效的域名或 URL</span>', 'input-hint error');
+        }
+    }
 
-        // 输入监控与初步验证
-        function checkInput() {
-            const val = DOM.targetUrl.value.trim();
+    // 使用 dns-over-https 在云端验证域名解析，绕过本地 DNS 污染，确保用户输入的地址确实可达
+    async function verifyDomain(domain) {
+        try {
+            const resp = await fetch(\`/__proxy_check?domain=\${encodeURIComponent(domain)}\`);
+            const { Status } = await resp.json();
+            if (domain !== lastDomain) return;
+            if (Status === 0) { lastStatus = 1; setUI('ok', iconSuccess + '<span>域名解析通过</span>', 'input-hint success'); }
+            else              { lastStatus = 2; setUI('fail', iconWarn + '<span>无法解析该域名，请检查网址拼写</span>', 'input-hint error'); }
+        } catch (e) {
+            if (domain !== lastDomain) return;
+            lastStatus = 2;
+            setUI('fail-bypass', iconWarn + '<span>验证超时，但您可以尝试强行访问</span>', 'input-hint error');
+        }
+    }
 
-            // 输入过程中始终显示末尾
-            DOM.targetUrl.scrollLeft = DOM.targetUrl.scrollWidth;
+    function copyResult() {
+        navigator.clipboard.writeText(DOM.copyTooltip.textContent).then(() => {
+            DOM.copyIcon.style.display = 'none';
+            DOM.checkIcon.style.display = 'block';
+            setTimeout(() => { DOM.copyIcon.style.display = 'block'; DOM.checkIcon.style.display = 'none'; }, 1000);
+        });
+    }
 
-            const cleanPath = val.split('?')[0].split('#')[0];
-            const isDownload = /\\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
-            DOM.btnText.textContent = isDownload ? '加速下载' : '加速访问';
+    // 表单提交处理，打开加速后的链接
+    function handleProxy(e) {
+        e.preventDefault();
+        const val = DOM.targetUrl.value.trim();
+        if (val) window.open(hostOrigin + '/' + val, '_blank');
+    }
 
-            if (!val) {
-                lastDomain = ''; lastStatus = 0;
-                setUI('reset', '<span>支持完整 URL 或域名 (如 github.com/sinspired)</span>');
-                return;
-            }
+    /* 
+        地球动画与主题切换
+        */
 
-            const domain = val.replace(/^https?:\\/\\//, '').split('/')[0];
-            const isDomain = domain.includes('.') && domain.split('.').pop().length >= 2;
+    // 参数
+    const GR    = 26;    // 球体半径（SVG user units）
+    const SPEED = 0.30;  // 正常自转速度（度/帧 ≈ 18rpm @60fps）
+    const BURST = 5.0;   // 切换时速度倍率
+    const BURST_FRAMES = 55; // 加速持续帧数（≈0.9s）
 
-            if (isDomain) {
-                // 同域名且已有结果时跳过重复验证
-                if (domain === lastDomain && lastStatus !== 0) return;
+    // 四条经线，相位各偏 45°（180° / 4）
+    const lngLines = [
+        { el: document.getElementById('gL0'), phase: 0   },
+        { el: document.getElementById('gL1'), phase: 45  },
+        { el: document.getElementById('gL2'), phase: 90  },
+        { el: document.getElementById('gL3'), phase: 135 },
+    ];
 
-                // 更新 tooltip 内容
-                const fullUrl = val.startsWith('http') ? val : 'https://' + val;
-                DOM.copyTooltip.textContent = hostOrigin + '/' + fullUrl;
-                DOM.capsuleTooltip.textContent = hostOrigin + '/';
+    let globeAngle  = 0;
+    let burstLeft   = 0;
 
-                lastDomain = domain; lastStatus = 0;
-                setUI('checking', '<span>正在由云端解析验证网址...</span>');
+    // 计算经线 SVG path
+    // 将角度 deg（绕Y轴旋转的经线方位角）映射为椭圆弧路径
+    function lngPath(deg) {
+        const rad  = (deg % 360) * Math.PI / 180;
+        const sinA = Math.sin(rad);
+        const rx   = Math.abs(GR * sinA);
+        if (rx < 0.45) {
+            // 接近 0° / 180°（子午线/反子午线）时退化为直线
+            return \`M 0 \${-GR} L 0 \${GR}\`;
+        }
+        // 椭圆弧从北极 (0,-R) 到南极 (0,R)
+        // sweep=1：前半球（弧向右），sweep=0：后半球（弧向左）
+        const sweep = sinA > 0 ? 1 : 0;
+        return \`M 0 \${-GR} A \${rx.toFixed(2)} \${GR} 0 0 \${sweep} 0 \${GR}\`;
+    }
 
-                clearTimeout(dnsTimer);
-                dnsTimer = setTimeout(() => verifyDomain(domain), 400);
-            } else {
-                lastDomain = ''; lastStatus = 0;
-                setUI('reset', iconWarn + '<span>请输入有效的域名或 URL</span>', 'input-hint error');
-            }
+    // 正对视角（cosA>0）→ 较深；背对（cosA<0）→ 较浅+虚线
+    function lngOpacity(deg) {
+        const cosA = Math.cos((deg % 360) * Math.PI / 180);
+        return Math.max(0.08, cosA * 0.38 + 0.50);
+    }
+
+    function lngDash(deg) {
+        const cosA = Math.cos((deg % 360) * Math.PI / 180);
+        return cosA < -0.1 ? '1.8 3.5' : 'none';
+    }
+
+        // 轨道旋转动画（SVG 属性驱动，绕 SVG 坐标原点旋转）─
+        // SVG rotate(deg, cx, cy) 明确指定轴心为 (0,0)（即球心），
+        // 彻底绕开 CSS transform-box 的跨浏览器歧义。
+        const gOrbit = document.getElementById('gOrbit');
+
+        // 按当前主题初始化：深色模式轨道已处于 180°（月亮在顶），浅色在 0°（太阳在顶）
+        const _initDark = document.getElementById('htmlRoot').classList.contains('dark');
+        let orbitCur = _initDark ? 180 : 0;
+        let orbitTarget = orbitCur;
+
+        // 立即设置初始 SVG 属性，避免页面加载时短暂闪烁
+        gOrbit.setAttribute('transform', \`rotate(\${orbitCur}, 0, 0)\`);
+
+        // 缓动函数：cubic-bezier(0.34, 1.08, 0.64, 1) 近似，带轻微弹性过冲
+        function easeOrbit(t) {
+            // 三次方缓出 + 轻微过冲
+            const s = 1 - t;
+            return 1 - s * s * s * (1 + t * 1.1);
         }
 
-        // 使用 dns-over-https 在云端验证域名解析，绕过本地 DNS 污染，确保用户输入的地址确实可达
-        async function verifyDomain(domain) {
-            try {
-                const resp = await fetch(\`/__proxy_check?domain=\${encodeURIComponent(domain)}\`);
-                const { Status } = await resp.json();
+        let orbitAnimStart = null;
+        let orbitAnimFrom = 0;
+        const ORBIT_DUR = 1500; // ms
 
-                if (domain !== lastDomain) return;
+        function stepOrbit(now) {
+            if (orbitAnimStart === null) orbitAnimStart = now;
+            const t = Math.min((now - orbitAnimStart) / ORBIT_DUR, 1);
+            orbitCur = orbitAnimFrom + (orbitTarget - orbitAnimFrom) * easeOrbit(t);
 
-                if (Status === 0) {
-                    lastStatus = 1;
-                    setUI('ok', iconSuccess + '<span>域名解析通过</span>', 'input-hint success');
-                } else {
-                    lastStatus = 2;
-                    setUI('fail', iconWarn + '<span>无法解析该域名，请检查网址拼写</span>', 'input-hint error');
-                }
-            } catch (e) {
-                if (domain !== lastDomain) return;
-                lastStatus = 2;
-                setUI('fail-bypass', iconWarn + '<span>验证超时，但您可以尝试强行访问</span>', 'input-hint error');
-            }
+            // SVG rotate(deg, cx, cy)：以 (0,0) 为轴心旋转，即球心
+            gOrbit.setAttribute('transform', \`rotate(\${orbitCur.toFixed(3)}, 0, 0)\`);
+
+            if (t < 1) requestAnimationFrame(stepOrbit);
         }
 
-        // 复制拼接后的加速链接到剪贴板，并显示反馈
-        function copyResult() {
-            navigator.clipboard.writeText(DOM.copyTooltip.textContent).then(() => {
-                DOM.copyIcon.style.display = 'none';
-                DOM.checkIcon.style.display = 'block';
-                setTimeout(() => {
-                    DOM.copyIcon.style.display = 'block';
-                    DOM.checkIcon.style.display = 'none';
-                }, 1000);
+        function startOrbitAnim() {
+            orbitAnimFrom = orbitCur;
+            orbitAnimStart = null;
+            requestAnimationFrame(stepOrbit);
+        }
+
+    // 地球经线渲染循环
+    function animGlobe() {
+        const spd    = burstLeft > 0 ? SPEED * BURST : SPEED;
+        globeAngle  += spd;
+        if (burstLeft > 0) burstLeft--;
+
+        lngLines.forEach(({ el, phase }) => {
+            const a = globeAngle + phase;
+            el.setAttribute('d',               lngPath(a));
+            el.setAttribute('stroke-opacity',  lngOpacity(a).toFixed(3));
+            el.setAttribute('stroke-dasharray',lngDash(a));
+        });
+
+        requestAnimationFrame(animGlobe);
+    }
+    animGlobe();
+
+    // 主题切换
+    function toggleTheme() {
+        document.getElementById('htmlRoot').classList.toggle('dark');
+        // 轨道翻转 180°（累计，支持连续点击）
+        orbitTarget += 180;
+        startOrbitAnim();
+        // 地球同步加速自转：视觉化「旋转带来昼夜更替」
+        burstLeft = BURST_FRAMES;
+    }
+
+    /* 
+        星空背景（深色模式）
+        */
+    (function initStars() {
+        const cvs = document.getElementById('starField');
+        const ctx = cvs.getContext('2d');
+
+        // 生成随机星点数据
+        const stars = Array.from({ length: 130 }, () => ({
+            x:  Math.random(),
+            y:  Math.random(),
+            r:  Math.random() * 1.1 + 0.25,
+            a:  Math.random() * 0.55 + 0.08,
+        }));
+
+        function draw() {
+            cvs.width  = window.innerWidth;
+            cvs.height = window.innerHeight;
+            ctx.clearRect(0, 0, cvs.width, cvs.height);
+            stars.forEach(s => {
+                ctx.beginPath();
+                ctx.arc(s.x * cvs.width, s.y * cvs.height, s.r, 0, Math.PI * 2);
+                ctx.fillStyle = \`rgba(200,210,240,\${s.a})\`;
+                ctx.fill();
             });
         }
 
-        // 表单提交处理，打开加速后的链接
-        function handleProxy(e) {
-            e.preventDefault();
-            const val = DOM.targetUrl.value.trim();
-            if (val) window.open(hostOrigin + '/' + val, '_blank');
-        }
-    </script>
+        draw();
+        window.addEventListener('resize', draw);
+    })();
+</script>
 </body>
 </html>`;
 }
