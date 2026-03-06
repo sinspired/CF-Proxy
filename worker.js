@@ -292,8 +292,8 @@ function getHtml(host) {
     <meta name="twitter:title" content="${SITE_NAME}" />
     <meta name="twitter:description" content="跨越边界，访问任意 URL。" />
     <meta name="twitter:image" content="https://${host}/CF-Proxy_OG.png" />
-    <!-- 立即读取系统偏好，防止主题闪烁 -->
-    <script>if(window.matchMedia('(prefers-color-scheme:dark)').matches)document.getElementById('htmlRoot').classList.add('dark')<\/script>
+    <!-- 按本地时间初始化主题（防闪烁）：6:00-18:00 浅色，其余深色 -->
+    <script>(function () { var h = new Date().getHours(); if (h < 6 || h >= 18) document.getElementById('htmlRoot').classList.add('dark'); })()</script>
     <style>
         :root {
             --primary: #000000;
@@ -392,7 +392,7 @@ function getHtml(host) {
             border: none;
             cursor: pointer;
             padding: 0;
-            margin-bottom: 1.4rem;
+            margin-bottom: 0.2rem;
             display: block;
             outline: none;
             transition: transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
@@ -493,7 +493,7 @@ function getHtml(host) {
             opacity: 0.85;
         }
 
-        /* 地球笔触─────*/
+        /* 地球笔触*/
         .g-globe {
             fill: none;
             stroke: var(--primary);
@@ -521,7 +521,7 @@ function getHtml(host) {
             fill: none;
         }
 
-        /* 输入框区域───*/
+        /* 输入框区域 */
         form {
             width: 100%;
         }
@@ -875,7 +875,7 @@ function getHtml(host) {
     <div class="main-container">
 
 
-        <!-- 地球轨道主题切换按钮
+    <!-- 地球轨道主题切换按钮
       ─ 地球始终自转（经度线持续旋转）
       ─ 点击时地球短暂加速，轨道翻转180°
       ─ 太阳落下 / 月亮升起，完成日升月落叙事 -->
@@ -1154,46 +1154,101 @@ function getHtml(host) {
         return cosA < -0.1 ? '1.8 3.5' : 'none';
     }
 
-        // 轨道旋转动画（SVG 属性驱动，绕 SVG 坐标原点旋转）─
-        // SVG rotate(deg, cx, cy) 明确指定轴心为 (0,0)（即球心），
-        // 彻底绕开 CSS transform-box 的跨浏览器歧义。
-        const gOrbit = document.getElementById('gOrbit');
+    // 轨道旋转动画（SVG 属性驱动，绕 SVG 坐标原点旋转）─
+    // SVG rotate(deg, cx, cy) 明确指定轴心为 (0,0)（即球心），
+    // 彻底绕开 CSS transform-box 的跨浏览器歧义。
+    // 轨道系统：以当前系统时间驱动，每分钟微调一次
+    //
+    // 角度映射：正午12:00 → 太阳在顶(0°)，午夜00:00 → 太阳在底(180°)
+    //   angle = (hours - 12 + 24) % 24 / 24 * 360
+    //
+    // 手动切换：点击后叠加 ±180° 偏移，之后继续跟随时间漂移
+    const gOrbit = document.getElementById('gOrbit');
 
-        // 按当前主题初始化：深色模式轨道已处于 180°（月亮在顶），浅色在 0°（太阳在顶）
-        const _initDark = document.getElementById('htmlRoot').classList.contains('dark');
-        let orbitCur = _initDark ? 180 : 0;
-        let orbitTarget = orbitCur;
+    // // 按当前主题初始化：深色模式轨道已处于 180°（月亮在顶），浅色在 0°（太阳在顶）
+    // const _initDark = document.getElementById('htmlRoot').classList.contains('dark');
+    // let orbitCur = _initDark ? 180 : 0;
+    // let orbitTarget = orbitCur;
 
-        // 立即设置初始 SVG 属性，避免页面加载时短暂闪烁
-        gOrbit.setAttribute('transform', \`rotate(\${orbitCur}, 0, 0)\`);
+    // // 立即设置初始 SVG 属性，避免页面加载时短暂闪烁
+    // gOrbit.setAttribute('transform', \`rotate(\${orbitCur}, 0, 0)\`);
 
-        // 缓动函数：cubic-bezier(0.34, 1.08, 0.64, 1) 近似，带轻微弹性过冲
-        function easeOrbit(t) {
-            // 三次方缓出 + 轻微过冲
-            const s = 1 - t;
-            return 1 - s * s * s * (1 + t * 1.1);
-        }
 
-        let orbitAnimStart = null;
-        let orbitAnimFrom = 0;
-        const ORBIT_DUR = 1500; // ms
+    const htmlRoot = document.getElementById('htmlRoot');
 
-        function stepOrbit(now) {
-            if (orbitAnimStart === null) orbitAnimStart = now;
-            const t = Math.min((now - orbitAnimStart) / ORBIT_DUR, 1);
-            orbitCur = orbitAnimFrom + (orbitTarget - orbitAnimFrom) * easeOrbit(t);
+    // 将本地时间转换为轨道角度（度）
+    function timeToAngle() {
+        const now = new Date();
+        const mins = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+        // 正午(720min) → 0°，每分钟转 360/1440 = 0.25°
+        return ((mins - 720 + 1440) % 1440) / 1440 * 360;
+    }
 
-            // SVG rotate(deg, cx, cy)：以 (0,0) 为轴心旋转，即球心
-            gOrbit.setAttribute('transform', \`rotate(\${orbitCur.toFixed(3)}, 0, 0)\`);
+    // 日间判断：太阳在上半轨（-90°~90°，即315°~360°或0°~90°）
+    function isDayAngle(deg) {
+        const a = ((deg % 360) + 360) % 360;
+        return a <= 90 || a >= 270;
+    }
 
-            if (t < 1) requestAnimationFrame(stepOrbit);
-        }
+    // 初始角度（来自时间）及手动偏移量
+    let timeAngle = timeToAngle();
+    let manualOffset = 0;          // 手动点击累计的偏移
+    let orbitTarget = timeAngle;  // 动画目标（含偏移）
+    let orbitCur = timeAngle;  // 当前渲染角度
 
-        function startOrbitAnim() {
-            orbitAnimFrom = orbitCur;
-            orbitAnimStart = null;
-            requestAnimationFrame(stepOrbit);
-        }
+    // 按初始角度设置主题（不触发动画，直接跳到位）
+    const initIsDark = !isDayAngle(timeAngle);
+    if (initIsDark) htmlRoot.classList.add('dark');
+    else htmlRoot.classList.remove('dark');
+    gOrbit.setAttribute('transform', \`rotate(\${orbitCur.toFixed(3)}, 0, 0)\`);
+
+    // 缓动函数：cubic-bezier(0.34, 1.08, 0.64, 1) 近似，带轻微弹性过冲
+    function easeOrbit(t) {
+        // 三次方缓出 + 轻微过冲
+        const s = 1 - t;
+        return 1 - s * s * s * (1 + t * 1.1);
+    }
+
+    let orbitAnimStart = null;
+    let orbitAnimFrom = 0;
+    const ORBIT_DUR = 1500; // ms
+
+    function stepOrbit(now) {
+        if (orbitAnimStart === null) orbitAnimStart = now;
+        const t = Math.min((now - orbitAnimStart) / ORBIT_DUR, 1);
+        orbitCur = orbitAnimFrom + (orbitTarget - orbitAnimFrom) * easeOrbit(t);
+
+        // SVG rotate(deg, cx, cy)：以 (0,0) 为轴心旋转，即球心
+        gOrbit.setAttribute('transform', \`rotate(\${orbitCur.toFixed(3)}, 0, 0)\`);
+
+        if (t < 1) requestAnimationFrame(stepOrbit);
+    }
+
+    function startOrbitAnim() {
+        orbitAnimFrom = orbitCur;
+        orbitAnimStart = null;
+        requestAnimationFrame(stepOrbit);
+    }
+
+
+    // 按分钟旋转天体
+    // 将 orbitTarget 更新为「真实时间角 + 手动偏移」
+    // 每次只漂移极小的角度（≈0.25°/min），动画几乎察觉不到
+    function tickTime() {
+        timeAngle = timeToAngle();
+        orbitTarget = timeAngle + manualOffset;
+
+        // 同步主题：若偏移为0或偶数次翻转，以实际时间判断
+        const effectiveAngle = ((orbitTarget % 360) + 360) % 360;
+        const shouldBeDark = !isDayAngle(effectiveAngle);
+        htmlRoot.classList.toggle('dark', shouldBeDark);
+
+        startOrbitAnim();
+    }
+
+    // 对齐到下一整分钟后每分钟触发
+    const msToNextMin = (60 - new Date().getSeconds()) * 1000;
+    setTimeout(() => { tickTime(); setInterval(tickTime, 60000); }, msToNextMin);
 
     // 地球经线渲染循环
     function animGlobe() {
@@ -1203,7 +1258,7 @@ function getHtml(host) {
 
         lngLines.forEach(({ el, phase }) => {
             const a = globeAngle + phase;
-            el.setAttribute('d',               lngPath(a));
+            el.setAttribute('d', lngPath(a));
             el.setAttribute('stroke-opacity',  lngOpacity(a).toFixed(3));
             el.setAttribute('stroke-dasharray',lngDash(a));
         });
@@ -1213,9 +1268,12 @@ function getHtml(host) {
     animGlobe();
 
     // 主题切换
+    // 点击叠加 180° 偏移，之后每分钟时间漂移会保持该偏移继续运行
     function toggleTheme() {
-        document.getElementById('htmlRoot').classList.toggle('dark');
-        // 轨道翻转 180°（累计，支持连续点击）
+        manualOffset += 180;
+        orbitTarget = timeAngle + manualOffset;
+        const effectiveAngle = ((orbitTarget % 360) + 360) % 360;
+        htmlRoot.classList.toggle('dark', !isDayAngle(effectiveAngle));
         orbitTarget += 180;
         startOrbitAnim();
         // 地球同步加速自转：视觉化「旋转带来昼夜更替」
