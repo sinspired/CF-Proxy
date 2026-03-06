@@ -89,33 +89,33 @@ async function handleRequest(request) {
     }
 
     // 测试 GitHub Token 配置状态
-    if (url.pathname === '/__debug_gh') {
-        const ghToken = getGhToken();
-        const info = {
-            token_configured: !!ghToken,
-            // 只暴露前8位用于确认是正确的 Token，后面隐藏以防泄露
-            token_prefix: ghToken ? ghToken.substring(0, 8) + '...' : null,
-        };
+    // if (url.pathname === '/__debug_gh') {
+    //     const ghToken = getGhToken();
+    //     const info = {
+    //         token_configured: !!ghToken,
+    //         // 只暴露前8位用于确认是正确的 Token，后面隐藏以防泄露
+    //         token_prefix: ghToken ? ghToken.substring(0, 8) + '...' : null,
+    //     };
 
-        // 如果 token 存在，实际测一下 GitHub API 的剩余配额
-        if (ghToken) {
-            try {
-                const resp = await fetch('https://api.github.com/rate_limit', {
-                    headers: {
-                        'Authorization': `Bearer ${ghToken}`,
-                        'User-Agent': 'CF-Proxy/Worker'
-                    }
-                });
-                const data = await resp.json();
-                info.rate_limit = data.rate;
-            } catch (e) {
-                info.rate_limit_error = e.message;
-            }
-        }
-        return new Response(JSON.stringify(info, null, 2), {
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
+    //     // 如果 token 存在，实际测一下 GitHub API 的剩余配额
+    //     if (ghToken) {
+    //         try {
+    //             const resp = await fetch('https://api.github.com/rate_limit', {
+    //                 headers: {
+    //                     'Authorization': `Bearer ${ghToken}`,
+    //                     'User-Agent': 'CF-Proxy/Worker'
+    //                 }
+    //             });
+    //             const data = await resp.json();
+    //             info.rate_limit = data.rate;
+    //         } catch (e) {
+    //             info.rate_limit_error = e.message;
+    //         }
+    //     }
+    //     return new Response(JSON.stringify(info, null, 2), {
+    //         headers: { 'Content-Type': 'application/json' }
+    //     });
+    // }
 
     // 3. 代理逻辑解析
     let actualUrlStr = url.pathname.slice(1) + url.search;
