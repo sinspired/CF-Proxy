@@ -93,7 +93,8 @@ async function handleRequest(request) {
         const ghToken = getGhToken();
         const info = {
             token_configured: !!ghToken,
-            token_prefix: ghToken ? ghToken.substring(0, 8) + '...' : null, // 只暴露前8位用于确认
+            // 只暴露前8位用于确认是正确的 Token，后面隐藏以防泄露
+            token_prefix: ghToken ? ghToken.substring(0, 8) + '...' : null,
         };
 
         // 如果 token 存在，实际测一下 GitHub API 的剩余配额
@@ -292,8 +293,8 @@ function getHtml(host) {
     <meta name="twitter:title" content="${SITE_NAME}" />
     <meta name="twitter:description" content="跨越边界，访问任意 URL。" />
     <meta name="twitter:image" content="https://${host}/CF-Proxy_OG.png" />
-    <!-- 按本地时间初始化主题（防闪烁）：6:00-18:00 浅色，其余深色 -->
-    <script>(function () { var h = new Date().getHours(); if (h < 6 || h >= 18) document.getElementById('htmlRoot').classList.add('dark'); })()</script>
+    <!-- 立即读取系统偏好，防止主题闪烁 -->
+    <script>if(window.matchMedia('(prefers-color-scheme:dark)').matches)document.getElementById('htmlRoot').classList.add('dark')<\/script>
     <style>
         :root {
             --primary: #000000;
@@ -542,23 +543,27 @@ function getHtml(host) {
             transition: stroke 0.8s ease;
         }
 
+        /* 地球外圆 */
         .g-globe-main {
-            stroke-width: 1.6;
+            stroke-width: 2.0;
         }
 
+        /* 赤道线 */
         .g-equator {
-            stroke-width: 1.0;
-            stroke-opacity: 0.50;
+            stroke-width: 1.2;
+            stroke-opacity: 0.40;
         }
 
+        /* 回归线 */
         .g-tropic {
             stroke-width: 0.75;
             stroke-opacity: 0.28;
             fill: none;
         }
 
+        /* 经线 */
         .g-lng {
-            stroke-width: 1.1;
+            stroke-width: 1.4;
             fill: none;
         }
 
@@ -994,8 +999,8 @@ function getHtml(host) {
         </svg>
     </button>
     <div class="globe-hint">
-    <span class="globe-hint-time" id="globeTime"></span>
-    <span class="globe-hint-action" id="globeAction"></span>
+        <span class="globe-hint-time" id="globeTime"></span>
+        <span class="globe-hint-action" id="globeAction"></span>
     </div>
     </div><!-- /globe-wrap -->
 
@@ -1192,6 +1197,7 @@ function getHtml(host) {
     // 正对视角（cosA>0）→ 较深；背对（cosA<0）→ 较浅+虚线
     function lngOpacity(deg) {
         const cosA = Math.cos((deg % 360) * Math.PI / 180);
+        // 正面(cosA=1) → 0.88，侧面(cosA=0) → 0.22，背面(cosA=-1) → 0.08
         return Math.max(0.08, cosA * 0.38 + 0.50);
     }
 
@@ -1200,7 +1206,7 @@ function getHtml(host) {
         return cosA < -0.1 ? '1.8 3.5' : 'none';
     }
 
-    // 轨道旋转动画（SVG 属性驱动，绕 SVG 坐标原点旋转）─
+    // 轨道旋转动画（SVG 属性驱动，绕 SVG 坐标原点旋转）
     // SVG rotate(deg, cx, cy) 明确指定轴心为 (0,0)（即球心），
     // 彻底绕开 CSS transform-box 的跨浏览器歧义。
     // 轨道系统：以当前系统时间驱动，每分钟微调一次
@@ -1316,11 +1322,10 @@ function getHtml(host) {
     // 主题切换
     // 点击叠加 180° 偏移，之后每分钟时间漂移会保持该偏移继续运行
     function toggleTheme() {
-        manualOffset += 180;
-        orbitTarget = timeAngle + manualOffset;
+        manualOffset  += 180;
+        orbitTarget    = timeAngle + manualOffset;
         const effectiveAngle = ((orbitTarget % 360) + 360) % 360;
         htmlRoot.classList.toggle('dark', !isDayAngle(effectiveAngle));
-        orbitTarget += 180;
         startOrbitAnim();
         // 地球同步加速自转：视觉化「旋转带来昼夜更替」
         burstLeft = BURST_FRAMES;
@@ -1365,9 +1370,7 @@ function getHtml(host) {
         setTimeout(stopClock, 2500);
     }, { passive: true });
 
-    /* 
-        星空背景（深色模式）
-        */
+    /* 星空背景（深色模式）*/
     (function initStars() {
         const cvs = document.getElementById('starField');
         const ctx = cvs.getContext('2d');
