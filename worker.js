@@ -244,7 +244,7 @@ function getLogoSvg() {
 
 function getErrorHtml(errorMsg, targetUrl) {
     return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" id="htmlRoot">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -294,7 +294,7 @@ function getHtml(host) {
     <meta name="twitter:description" content="跨越边界，访问任意 URL。" />
     <meta name="twitter:image" content="https://${host}/CF-Proxy_OG.png" />
     <!-- 立即读取系统偏好，防止主题闪烁 -->
-    <script>if(window.matchMedia('(prefers-color-scheme:dark)').matches)document.getElementById('htmlRoot').classList.add('dark')<\/script>
+    <script>if(window.matchMedia('(prefers-color-scheme:dark)').matches)document.getElementById('htmlRoot').classList.add('dark')</script>
     <style>
         :root {
             --primary: #000000;
@@ -428,7 +428,7 @@ function getHtml(host) {
             border-radius: 50%;
         }
 
-        /* ── 悬停提示（绝对定位，不占文档流空间）──────── */
+        /* 悬停提示（绝对定位，不占文档流空间）*/
         .globe-hint {
             position: absolute;
             bottom: calc(100% + 12px);
@@ -943,7 +943,7 @@ function getHtml(host) {
       ─ 太阳落下 / 月亮升起，完成日升月落叙事 -->
 
     <div class="globe-wrap">
-    <button class="globe-toggle" onclick="toggleTheme()" aria-label="切换深浅色主题">
+    <button class="globe-toggle" onclick="toggleTheme()" ondblclick="resetTheme(event)" aria-label="切换深浅色主题">
 
         <svg id="globeSvg" viewBox="-44 -44 88 88" width="88" height="88" style="overflow:visible" aria-hidden="true">
             <defs>
@@ -1264,10 +1264,29 @@ function getHtml(host) {
     let orbitTarget = timeAngle;  // 动画目标（含偏移）
     let orbitCur = timeAngle;  // 当前渲染角度
 
-    // 按初始角度设置主题（不触发动画，直接跳到位）
-    const initIsDark = !isDayAngle(timeAngle);
-    if (initIsDark) htmlRoot.classList.add('dark');
-    else htmlRoot.classList.remove('dark');
+    // // 按时间初始化轨道位置和主题，避免加载时闪烁
+    // const initIsDark = !isDayAngle(timeAngle);
+    // if (initIsDark) htmlRoot.classList.add('dark');
+    // else htmlRoot.classList.remove('dark');
+
+    // 主题优先级：localStorage > 系统偏好 > 时间
+    // 轨道角度与主题状态解耦：轨道永远显示真实时间，主题由用户偏好决定
+    function getSystemDark() {
+        return window.matchMedia('(prefers-color-scheme:dark)').matches;
+    }
+    function applyTheme(dark) {
+        htmlRoot.classList.toggle('dark', dark);
+    }
+
+    // 初始主题（头部脚本已处理，此处仅补全 manualOffset 使轨道与主题对齐）
+    const savedTheme = localStorage.getItem('cf-theme');
+    const initDark = savedTheme === 'dark' || (savedTheme === null && getSystemDark());
+    // 若保存主题与时间主题不一致，说明用户做过手动切换，补偿偏移使轨道方向与主题一致
+    const timeDark = !isDayAngle(timeAngle);
+    if (initDark !== timeDark) manualOffset = 180;
+    orbitTarget = timeAngle + manualOffset;
+    orbitCur = orbitTarget;
+
     gOrbit.setAttribute('transform', \`rotate(\${orbitCur.toFixed(3)}, 0, 0)\`);
 
     // 缓动函数：cubic-bezier(0.34, 1.08, 0.64, 1) 近似，带轻微弹性过冲
@@ -1307,9 +1326,15 @@ function getHtml(host) {
         orbitTarget = timeAngle + manualOffset;
 
         // 同步主题：若偏移为0或偶数次翻转，以实际时间判断
-        const effectiveAngle = ((orbitTarget % 360) + 360) % 360;
-        const shouldBeDark = !isDayAngle(effectiveAngle);
-        htmlRoot.classList.toggle('dark', shouldBeDark);
+        // const effectiveAngle = ((orbitTarget % 360) + 360) % 360;
+        // const shouldBeDark = !isDayAngle(effectiveAngle);
+        // htmlRoot.classList.toggle('dark', shouldBeDark);
+
+        // 仅当无手动偏移（或偶数次抵消）时，跟随时间自动切换主题
+        if (localStorage.getItem('cf-theme') === null) {
+            const effectiveAngle = ((orbitTarget % 360) + 360) % 360;
+            applyTheme(!isDayAngle(effectiveAngle));
+        }
 
         startOrbitAnim();
     }
@@ -1338,14 +1363,44 @@ function getHtml(host) {
     // 主题切换
     // 点击叠加 180° 偏移，之后每分钟时间漂移会保持该偏移继续运行
     function toggleTheme() {
-        manualOffset  += 180;
+        manualOffset = ((manualOffset + 180) % 360 + 360) % 360; // 归一化，防止无限累加
+        // manualOffset  += 180;
         orbitTarget    = timeAngle + manualOffset;
         const effectiveAngle = ((orbitTarget % 360) + 360) % 360;
-        htmlRoot.classList.toggle('dark', !isDayAngle(effectiveAngle));
+        const dark = !isDayAngle(effectiveAngle);
+        applyTheme(dark);
+        localStorage.setItem('cf-theme', dark ? 'dark' : 'light');
         startOrbitAnim();
+
         // 地球同步加速自转：视觉化「旋转带来昼夜更替」
         burstLeft = BURST_FRAMES;
     }
+
+    // 双击：清除保存，恢复系统主题
+    function resetTheme(e) {
+        e.stopPropagation(); // 阻止冒泡触发第二次 onclick
+        localStorage.removeItem('cf-theme');
+        const sysDark = getSystemDark();
+        applyTheme(sysDark);
+        // 重置 manualOffset 使轨道与系统主题对齐
+        const timeDark = !isDayAngle(((timeAngle % 360) + 360) % 360);
+        manualOffset = sysDark !== timeDark ? 180 : 0;
+        orbitTarget = timeAngle + manualOffset;
+        startOrbitAnim();
+        burstLeft = BURST_FRAMES;
+    }
+
+    // 监听系统主题变化（仅在无手动覆盖时响应）
+    window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', e => {
+        if (localStorage.getItem('cf-theme') !== null) return; // 用户已手动设置，忽略
+        const sysDark = e.matches;
+        applyTheme(sysDark);
+        const timeDark = !isDayAngle(((timeAngle % 360) + 360) % 360);
+        manualOffset = sysDark !== timeDark ? 180 : 0;
+        orbitTarget = timeAngle + manualOffset;
+        startOrbitAnim();
+    });
+
 
     // 悬停提示（时间 + 操作说明）
     const globeTimeEl   = document.getElementById('globeTime');
