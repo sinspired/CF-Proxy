@@ -741,6 +741,7 @@ function getHtml(host) {
 
         .input-field::placeholder {
             color: var(--text-light);
+            font-size: 1.1rem;
             opacity: 0.6;
             font-family: inherit;
         }
