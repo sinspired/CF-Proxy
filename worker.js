@@ -1494,12 +1494,19 @@ function getHtml(host) {
     }
 
     const globeWrap = document.querySelector('.globe-wrap');
+    const globeHint = document.querySelector('.globe-hint');
     globeWrap.addEventListener('mouseenter', startClock);
     globeWrap.addEventListener('mouseleave', stopClock);
-    // 移动端 touch：触摸后短暂显示
+    // 移动端 touch：触摸后短暂显示提示，超时后移除 class 触发 CSS 淡出
+    let touchHideTimer = null;
     globeWrap.addEventListener('touchstart', () => {
         startClock();
-        setTimeout(stopClock, 1500);
+        globeHint.classList.add('touch-show');
+        clearTimeout(touchHideTimer);
+        touchHideTimer = setTimeout(() => {
+            globeHint.classList.remove('touch-show');
+            stopClock();
+        }, 1800);
     }, { passive: true });
 
     /* 星空背景（深色模式）*/
