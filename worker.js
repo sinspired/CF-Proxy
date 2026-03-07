@@ -956,7 +956,7 @@ function getHtml(host) {
       ─ 太阳落下 / 月亮升起，完成日升月落叙事 -->
 
     <div class="globe-wrap">
-    <button class="globe-toggle" onclick="toggleTheme()" ondblclick="resetTheme(event)" aria-label="切换深浅色主题">
+    <button class="globe-toggle" onclick="handleGlobeClick()" aria-label="切换深浅色主题（双击恢复系统主题）">
 
         <svg id="globeSvg" viewBox="-44 -44 88 88" width="88" height="88" style="overflow:visible" aria-hidden="true">
             <defs>
@@ -1195,13 +1195,20 @@ function getHtml(host) {
     const SPEED = 0.30;  // 正常自转速度（度/帧 ≈ 18rpm @60fps）
     const BURST = 5.0;   // 切换时速度倍率
     const BURST_FRAMES = 55; // 加速持续帧数（≈0.9s）
-
-    // 四条经线，相位各偏 45°（180° / 4）
-    const lngLines = [
-        { el: document.getElementById('gL0'), phase: 0   },
-        { el: document.getElementById('gL1'), phase: 45  },
-        { el: document.getElementById('gL2'), phase: 90  },
+    
+    // 六条经线，相位各偏 30°（180° / 6），任意时刻正面半球始终有 3 条均匀分布
+    // 正面经线：在 [0°, 180°] 循环，从左弧扫到右弧（sin>0，弧向右）
+    // 背面经线：在 [180°, 360°] 循环，从右弧扫到左弧（sin<0，弧向左）
+    // 二者以相同角速度推进 → 共同营造球体持续旋转的立体感
+    const lines = [
+        { el: document.getElementById('gL0'), phase: 0 },
+        { el: document.getElementById('gL1'), phase: 45 },
+        { el: document.getElementById('gL2'), phase: 90 },
         { el: document.getElementById('gL3'), phase: 135 },
+        { el: document.getElementById('gL4'), phase: 180 },
+        { el: document.getElementById('gL5'), phase: 225 },
+        { el: document.getElementById('gL6'), phase: 270 },
+        { el: document.getElementById('gL7'), phase: 315 },
     ];
 
     let globeAngle  = 0;
@@ -1225,9 +1232,10 @@ function getHtml(host) {
 
     // 正对视角（cosA>0）→ 较深；背对（cosA<0）→ 较浅+虚线
     function lngOpacity(deg) {
-        const cosA = Math.cos((deg % 360) * Math.PI / 180);
-        // 正面(cosA=1) → 0.88，侧面(cosA=0) → 0.22，背面(cosA=-1) → 0.08
-        return Math.max(0.08, cosA * 0.38 + 0.50);
+            const rad = ((deg % 360) + 360) % 360 * Math.PI / 180;
+            const cosA = Math.cos(rad);
+            if (cosA <= 0) return 0.08;           // 背向观察者 → 极淡
+            return 0.25 + cosA * 0.60;           // 前景：边缘0.25，正中0.85
     }
 
     function lngDash(deg) {
@@ -1362,22 +1370,39 @@ function getHtml(host) {
         globeAngle  += spd;
         if (burstLeft > 0) burstLeft--;
 
-        lngLines.forEach(({ el, phase }) => {
-            const a = globeAngle + phase;
-            el.setAttribute('d', lngPath(a));
-            el.setAttribute('stroke-opacity',  lngOpacity(a).toFixed(3));
-            el.setAttribute('stroke-dasharray',lngDash(a));
+        lines.forEach(line => {
+                line.phase = (line.phase + spd) % 360;
+                line.el.setAttribute('d', lngPath(line.phase));
+                line.el.setAttribute('stroke-opacity', lngOpacity(line.phase).toFixed(3));
+                line.el.setAttribute('stroke-dasharray', lngDash(line.phase)); 
         });
 
         requestAnimationFrame(animGlobe);
     }
     animGlobe();
 
+    // ── 单击/双击区分（计时器方案，避免 dblclick 先触发两次 click 的浏览器行为）
+    let clickTimer = null;
+
+    function handleGlobeClick() {
+        if (clickTimer) {
+            // 第二次点击在 300ms 内：判定为双击，执行 resetTheme
+            clearTimeout(clickTimer);
+            clickTimer = null;
+            resetTheme();
+        } else {
+            clickTimer = setTimeout(() => {
+                clickTimer = null;
+                toggleTheme();
+            }, 300);
+        }
+    }
+            
     // 主题切换
     // 点击叠加 180° 偏移，之后每分钟时间漂移会保持该偏移继续运行
     function toggleTheme() {
-        manualOffset = ((manualOffset + 180) % 360 + 360) % 360; // 归一化，防止无限累加
-        // manualOffset  += 180;
+        // manualOffset = ((manualOffset + 180) % 360 + 360) % 360; // 归一化，防止无限累加
+        manualOffset  += 180;
         orbitTarget    = timeAngle + manualOffset;
         const effectiveAngle = ((orbitTarget % 360) + 360) % 360;
         const dark = !isDayAngle(effectiveAngle);
@@ -1391,7 +1416,6 @@ function getHtml(host) {
 
     // 双击：清除保存，恢复系统主题
     function resetTheme(e) {
-        e.stopPropagation(); // 阻止冒泡触发第二次 onclick
         localStorage.removeItem('cf-theme');
         const sysDark = getSystemDark();
         applyTheme(sysDark);
@@ -1451,7 +1475,7 @@ function getHtml(host) {
     // 移动端 touch：触摸后短暂显示
     globeWrap.addEventListener('touchstart', () => {
         startClock();
-        setTimeout(stopClock, 2500);
+        setTimeout(stopClock, 1500);
     }, { passive: true });
 
     /* 星空背景（深色模式）*/
