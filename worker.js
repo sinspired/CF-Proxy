@@ -321,7 +321,7 @@ function getHtml(host) {
             --line: rgba(255, 255, 255, 0.20);
             --line-focus: rgba(186, 208, 233, 0.6);
             --capsule-bg: rgba(255, 255, 255, 0.08);
-            --orbit-glow: rgba(147, 197, 253, 0.20);
+            --orbit-glow: rgba(147, 197, 253, 0.16);
             /* 月亮光晕色 */
         }
 
@@ -609,8 +609,8 @@ function getHtml(host) {
             display: flex;
             align-items: center;
             border-bottom: 1px solid var(--line);
-            margin-bottom: 3.5rem;
-            padding-bottom: 8px;
+            margin-bottom: 4.5rem;
+            padding-bottom: 4px;
             transition: border-color 0.4s ease;
         }
 
@@ -632,7 +632,7 @@ function getHtml(host) {
         .input-hint {
             position: absolute;
             top: calc(100% + 12px);
-            left: 0;
+            left: 0px;
             font-size: 0.8rem;
             color: var(--text-light);
             transition: all 0.3s ease;
@@ -933,6 +933,9 @@ function getHtml(host) {
                 font-size: 1rem;
             }
 
+            .input-hint{
+            top: calc(100% + 13px);
+            }
             .transit-capsule.active {
                 width: 36px;
             }
@@ -1093,7 +1096,9 @@ function getHtml(host) {
                     oninput="checkInput()"
                     onfocus="requestAnimationFrame(() => { this.scrollLeft = this.scrollWidth; })"
                 >
-                <div id="inputHint" class="input-hint"><span>支持完整 URL 或域名 (如 github.com/sinspired)</span></div>
+                <div id="inputHint" class="input-hint">
+                    <span>支持完整 URL 或域名 (如 github.com/sinspired)</span>
+                </div>
             </div>
 
             <button type="button" id="copyBtn" class="copy-btn" onclick="copyResult()">
