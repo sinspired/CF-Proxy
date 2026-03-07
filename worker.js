@@ -1019,13 +1019,27 @@ function getHtml(host) {
             <ellipse cx="0" cy="-10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
             <ellipse cx="0" cy="10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
 
-            <!-- 经度线：由 JS 持续驱动，模拟地球绕 Y 轴自转 -->
-            <path id="gL0" class="g-globe g-lng" />
-            <path id="gL1" class="g-globe g-lng" />
-            <path id="gL2" class="g-globe g-lng" />
-            <path id="gL3" class="g-globe g-lng" />
+                <!-- 纬度线：赤道 + 南北回归线（静态，衬托球体） -->
+                <line x1="-26" y1="0" x2="26" y2="0" class="g-globe g-equator" />
+                <ellipse cx="0" cy="-10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
+                <ellipse cx="0" cy="10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
 
-        </svg>
+                <!-- 经度线：前景（正面）+ 背景（背面），由 JS 驱动 -->
+                <path id="gL0" class="g-globe g-lng" />
+                <path id="gL1" class="g-globe g-lng" />
+                <path id="gL2" class="g-globe g-lng" />
+                <path id="gL3" class="g-globe g-lng" />
+                <path id="gL4" class="g-globe g-lng" />
+                <path id="gL5" class="g-globe g-lng" />
+                <path id="gL6" class="g-globe g-lng" />
+                <path id="gL7" class="g-globe g-lng" />
+                <!-- 背面经线（极淡，视觉衬底） -->
+                <!-- <path id="gB0" class="g-globe g-lng" />
+                <path id="gB1" class="g-globe g-lng" />
+                <path id="gB2" class="g-globe g-lng" />
+                <path id="gB3" class="g-globe g-lng" /> -->
+
+            </svg>
     </button>
     <div class="globe-hint">
         <span class="globe-hint-time" id="globeTime"></span>
@@ -1074,7 +1088,7 @@ function getHtml(host) {
 
         <button type="submit" id="mainBtn" class="submit-btn">
             <span id="dot" class="status-dot"></span>
-            <span id="btnText">加速访问</span>
+            <span id="btnText">准备就绪</span>
         </button>
     </form>
 </div>
@@ -1133,8 +1147,8 @@ function getHtml(host) {
         DOM.targetUrl.scrollLeft = DOM.targetUrl.scrollWidth;
         const cleanPath = val.split('?')[0].split('#')[0];
         const isDownload = /\\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
-        DOM.btnText.textContent = isDownload ? '加速下载' : '加速访问';
         if (!val) {
+            DOM.btnText.textContent = '准备就绪';
             lastDomain = ''; lastStatus = 0;
             setUI('reset', '<span>支持完整 URL 或域名 (如 github.com/sinspired)</span>');
             return;
@@ -1142,6 +1156,8 @@ function getHtml(host) {
         const domain = val.replace(/^https?:\\/\\//, '').split('/')[0];
         const isDomain = domain.includes('.') && domain.split('.').pop().length >= 2;
         if (isDomain) {
+            DOM.btnText.textContent = isDownload ? '加速下载' : '加速访问';
+
             if (domain === lastDomain && lastStatus !== 0) return;
             const fullUrl = val.startsWith('http') ? val : 'https://' + val;
             DOM.copyTooltip.textContent   = hostOrigin + '/' + fullUrl;
@@ -1151,6 +1167,7 @@ function getHtml(host) {
             clearTimeout(dnsTimer);
             dnsTimer = setTimeout(() => verifyDomain(domain), 400);
         } else {
+            DOM.btnText.textContent = '正在输入';
             lastDomain = ''; lastStatus = 0;
             setUI('reset', iconWarn + '<span>请输入有效的域名或 URL</span>', 'input-hint error');
         }
@@ -1162,11 +1179,16 @@ function getHtml(host) {
             const resp = await fetch(\`/__proxy_check?domain=\${encodeURIComponent(domain)}\`);
             const { Status } = await resp.json();
             if (domain !== lastDomain) return;
-            if (Status === 0) { lastStatus = 1; setUI('ok', iconSuccess + '<span>域名解析通过</span>', 'input-hint success'); }
+                const cleanPath = DOM.targetUrl.value.trim().split('?')[0].split('#')[0];
+                const isDownload = /\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
+                if (Status === 0) { lastStatus = 1; DOM.btnText.textContent = isDownload ? '加速下载' : '加速访问'; setUI('ok', iconSuccess + '<span>域名解析通过</span>', 'input-hint success'); }
             else              { lastStatus = 2; setUI('fail', iconWarn + '<span>无法解析该域名，请检查网址拼写</span>', 'input-hint error'); }
         } catch (e) {
             if (domain !== lastDomain) return;
             lastStatus = 2;
+            const cleanPath = DOM.targetUrl.value.trim().split('?')[0].split('#')[0];
+            const isDownload = /\.(zip|exe|tar|gz|rar|7z|apk|iso|dmg|pkg|msi|bin|ipa)$/i.test(cleanPath);
+            DOM.btnText.textContent = isDownload ? '加速下载' : '加速访问';
             setUI('fail-bypass', iconWarn + '<span>验证超时，但您可以尝试强行访问</span>', 'input-hint error');
         }
     }
@@ -1195,7 +1217,7 @@ function getHtml(host) {
     const SPEED = 0.30;  // 正常自转速度（度/帧 ≈ 18rpm @60fps）
     const BURST = 5.0;   // 切换时速度倍率
     const BURST_FRAMES = 55; // 加速持续帧数（≈0.9s）
-    
+
     // 六条经线，相位各偏 30°（180° / 6），任意时刻正面半球始终有 3 条均匀分布
     // 正面经线：在 [0°, 180°] 循环，从左弧扫到右弧（sin>0，弧向右）
     // 背面经线：在 [180°, 360°] 循环，从右弧扫到左弧（sin<0，弧向左）
@@ -1211,7 +1233,6 @@ function getHtml(host) {
         { el: document.getElementById('gL7'), phase: 315 },
     ];
 
-    let globeAngle  = 0;
     let burstLeft   = 0;
 
     // 计算经线 SVG path
@@ -1364,7 +1385,11 @@ function getHtml(host) {
     const msToNextMin = (60 - new Date().getSeconds()) * 1000;
     setTimeout(() => { tickTime(); setInterval(tickTime, 60000); }, msToNextMin);
 
-    // 地球经线渲染循环
+    // ── 地球经线渲染循环 ───────────────────────────────
+    // 正面线 [0°,180°)：相位超过 180° → 回绕到 0°（无缝，两端均为竖线）
+    // 背面线 [180°,360°)：相位超过 360° → 回绕到 180°
+    // 背面线透明度固定极低，正面线透明度随 cos 值变化（侧面自然淡出）
+    const BACK_OPACITY = 0.06;
     function animGlobe() {
         const spd    = burstLeft > 0 ? SPEED * BURST : SPEED;
         globeAngle  += spd;
