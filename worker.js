@@ -960,13 +960,6 @@ function getHtml(host) {
                 display: none;
             }
         }
-    
-        /* 高度不足时*/
-        @media (max-height: 680px) {
-            body{
-                min-height: 100vh-60px;
-            }
-        }
     </style>
 </head>
 
