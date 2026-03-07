@@ -961,9 +961,9 @@ function getHtml(host) {
             }
         }
 
-        @media (max-height: 500px) {
+        @media (max-height: 700px) {
             .main-container {
-                padding: 60px 24px 80px;
+                padding: 80px 24px 80px !important;
             }
         }   
     </style>
