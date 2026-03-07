@@ -337,23 +337,24 @@ function getHtml(host) {
             -webkit-tap-highlight-color: transparent;
         }
 
-        html {
-            height: 100%;
-            overflow-x: hidden;
-        }
-
+        html,
         body {
-            overflow-x: hidden;
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            /* 强制禁止任何方向的滚动条 */
+            overflow: hidden !important;
+            /* 防止移动端浏览器在输入法弹出时的视口抖动 */
+            position: fixed;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg);
             color: var(--text);
-            /* svh = small viewport height，始终取地址栏展开时的最小可见高度，锁屏解锁后不会重算变大 */
-            /* dvh 在 Firefox Android 解锁后可能返回异常大的值导致 flex 布局撑高 */
+            /* svh 在 Firefox Android 上比 dvh 更稳定，不会受输入法状态切换的干扰 */
             height: 100svh;
-            height: 100dvh;
             display: flex;
             flex-direction: column;
             transition: background-color 0.8s ease, color 0.6s ease;
@@ -388,6 +389,8 @@ function getHtml(host) {
             animation: fadeIn 0.8s ease forwards;
             position: relative;
             z-index: 1;
+            /* 确保容器本身不溢出 */
+            overflow: hidden;
         }
 
         h1 {
