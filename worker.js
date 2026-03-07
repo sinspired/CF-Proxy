@@ -337,7 +337,11 @@ function getHtml(host) {
             -webkit-tap-highlight-color: transparent;
         }
 
-        html,
+        html {
+            height: 100%;
+            overflow-x: hidden;
+        }
+
         body {
             overflow-x: hidden;
         }
@@ -346,8 +350,10 @@ function getHtml(host) {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg);
             color: var(--text);
-            min-height: 100vh;
-            min-height: 100dvh;
+            /* svh = small viewport height，始终取地址栏展开时的最小可见高度，锁屏解锁后不会重算变大 */
+            /* dvh 在 Firefox Android 解锁后可能返回异常大的值导致 flex 布局撑高 */
+            height: 100svh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             transition: background-color 0.8s ease, color 0.6s ease;
