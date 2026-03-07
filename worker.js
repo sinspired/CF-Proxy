@@ -978,7 +978,7 @@ function getHtml(host) {
       ─ 太阳落下 / 月亮升起，完成日升月落叙事 -->
 
     <div class="globe-wrap">
-        <button class="globe-toggle" onclick="handleGlobeClick()" aria-label="切换深浅色主题（双击恢复系统主题）">
+        <button class="globe-toggle" onclick="toggleTheme()" ondblclick="resetTheme(event)" aria-label="切换深浅色主题">
 
         <svg id="globeSvg" viewBox="-44 -44 88 88" width="88" height="88" style="overflow:visible" aria-hidden="true">
             <defs>
@@ -1421,23 +1421,6 @@ function getHtml(host) {
         requestAnimationFrame(animGlobe);
     }
     animGlobe();
-
-    // ── 单击/双击区分（计时器方案，避免 dblclick 先触发两次 click 的浏览器行为）
-    let clickTimer = null;
-
-    function handleGlobeClick() {
-        if (clickTimer) {
-            // 第二次点击在 300ms 内：判定为双击，执行 resetTheme
-            clearTimeout(clickTimer);
-            clickTimer = null;
-            resetTheme();
-        } else {
-            clickTimer = setTimeout(() => {
-                clickTimer = null;
-                toggleTheme();
-            }, 300);
-        }
-    }
             
     // 主题切换
     // 点击叠加 180° 偏移，之后每分钟时间漂移会保持该偏移继续运行
@@ -1457,6 +1440,7 @@ function getHtml(host) {
 
     // 双击：清除保存，恢复系统主题
     function resetTheme(e) {
+        e.stopPropagation(); // 阻止冒泡触发第二次 onclick
         localStorage.removeItem('cf-theme');
         const sysDark = getSystemDark();
         applyTheme(sysDark);
