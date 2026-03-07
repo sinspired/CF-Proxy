@@ -371,7 +371,7 @@ function getHtml(host) {
             max-width: 640px;
             margin: 0 auto;
             text-align: center;
-            padding: 20px 24px 80px;
+            padding: 50px 24px 80px;
             animation: fadeIn 0.8s ease forwards;
             position: relative;
             z-index: 1;
