@@ -457,7 +457,15 @@ function getHtml(host) {
             padding: 6px 10px;
             border-radius: 10px; */
         }
-        .globe-wrap:hover .globe-hint {
+        /* 桌面端：鼠标悬停显示 */
+        @media (hover: hover) {
+            .globe-wrap:hover .globe-hint {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        /* 触屏/桌面端通用：JS 手动触发 */
+        .globe-hint.touch-show {
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
@@ -1129,7 +1137,7 @@ function getHtml(host) {
         DOM.divider.classList.toggle('active', isResolved);
         DOM.copyBtn.classList.toggle('active', isResolved);
         DOM.mainBtn.classList.toggle('ready', isResolved);
-        if (state === 'checking')      DOM.dot.className = 'status-dot dot-checking';
+        if (state === 'checking')    { DOM.dot.className = 'status-dot dot-checking'; DOM.btnText.textContent = '验证中...'; }
         else if (isResolved)           DOM.dot.className = 'status-dot dot-ok';
         else                           DOM.dot.className = 'status-dot';
         DOM.inputHint.innerHTML  = hintHTML;
