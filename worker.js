@@ -377,7 +377,7 @@ function getHtml(host) {
             align-items: center;
             justify-content: center;
             width: 100%;
-            max-width: 640px;
+            max-width: 1024px;
             margin: 0 auto;
             text-align: center;
             padding: 20px 24px 80px;
