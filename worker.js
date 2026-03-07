@@ -960,6 +960,12 @@ function getHtml(host) {
                 display: none;
             }
         }
+
+        @media (max-height: 500px) {
+            .main-container {
+                padding: 60px 24px 80px;
+            }
+        }   
     </style>
 </head>
 
