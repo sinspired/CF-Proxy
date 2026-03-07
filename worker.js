@@ -951,6 +951,49 @@ function getHtml(host) {
                 display: none;
             }
         }
+    
+        /* 高度不足时：压缩其他间距，保留 padding-top（悬浮提示保留空间） */
+        @media (max-height: 680px) {
+            .main-container {
+                padding-bottom: 40px;
+            }
+
+            .tagline {
+                margin-bottom: 2rem;
+            }
+
+            .input-group {
+                margin-bottom: 2rem;
+            }
+
+            footer {
+                padding: 12px 20px;
+            }
+        }
+
+        @media (max-height: 580px) {
+            .main-container {
+                padding-bottom: 20px;
+            }
+
+            .tagline {
+                margin-bottom: 1.2rem;
+                font-size: 0.9rem;
+            }
+
+            .input-group {
+                margin-bottom: 1.5rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 0.3rem;
+            }
+
+            footer {
+                display: none;
+            }
+        }
     </style>
 </head>
 
