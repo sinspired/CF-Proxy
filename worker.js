@@ -298,6 +298,7 @@ function getHtml(host) {
     <style>
         :root {
             --primary: #000000;
+            --primary-disabled: rgba(0, 0, 0, 0.3);
             --bg: #ffffff;
             --text: #111111;
             --text-light: #888888;
@@ -313,6 +314,7 @@ function getHtml(host) {
         
         html.dark {
             --primary: #ffffff;
+            --primary-disabled: rgba(255, 255, 255, 0.25);
             --bg: #0a0a0a;
             --text: #f0f0f0;
             --text-light: #666666;
@@ -785,11 +787,22 @@ function getHtml(host) {
             font-weight: 500;
             cursor: pointer;
             transition: all 0.3s ease, background 0.8s ease, color 0.6s ease;
-            opacity: 0.2;
+            opacity: 1;
             pointer-events: none;
             display: inline-flex;
             align-items: center;
             gap: 10px;
+        }
+        
+        /* 禁用态：背景透明度单独控制，保持实色背景 */
+        html:not(.dark) .submit-btn:not(.ready) {
+            background: rgb(224, 224, 224);
+            color: var(--primary-disabled);
+        }
+
+        html.dark .submit-btn:not(.ready) {
+            background: rgb(35, 35, 35);
+            color: var(--primary-disabled);
         }
 
         .submit-btn.ready {
@@ -806,7 +819,7 @@ function getHtml(host) {
             width: 6px;
             height: 6px;
             border-radius: 50%;
-            background: var(--text-light);
+            background: var(--primary-disabled);
             transition: background 0.3s;
         }
 
