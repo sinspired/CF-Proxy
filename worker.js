@@ -332,16 +332,13 @@ function getHtml(host) {
             -webkit-tap-highlight-color: transparent;
         }
 
-        html,
-        body {
+        html {
             height: 100%;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            /* 强制禁止任何方向的滚动条 */
-            overflow: hidden !important;
-            /* 防止移动端浏览器在输入法弹出时的视口抖动 */
-            position: fixed;
+            overflow-x: hidden;
+        }
+
+        body {
+            overflow-x: hidden;
         }
 
         body {
@@ -377,15 +374,13 @@ function getHtml(host) {
             align-items: center;
             justify-content: center;
             width: 100%;
-            max-width: 1024px;
+            max-width: 640px;
             margin: 0 auto;
             text-align: center;
             padding: 20px 24px 80px;
             animation: fadeIn 0.8s ease forwards;
             position: relative;
             z-index: 1;
-            /* 确保容器本身不溢出 */
-            overflow: hidden;
         }
 
         h1 {
@@ -632,7 +627,7 @@ function getHtml(host) {
         .input-hint {
             position: absolute;
             top: calc(100% + 12px);
-            left: 0px;
+            left: 0;
             font-size: 0.8rem;
             color: var(--text-light);
             transition: all 0.3s ease;
@@ -729,10 +724,38 @@ function getHtml(host) {
             z-index: 100;
         }
 
-        .transit-capsule:hover .tooltip,
+        /* 左侧胶囊：从左边缘向右展开，小箭头贴左 */
+        .transit-capsule .tooltip {
+            left: 0;
+            transform: translateY(-8px) scale(0.95);
+        }
+
+        .transit-capsule .tooltip::after {
+            left: 14px;
+            transform: none;
+        }
+
+        .transit-capsule:hover .tooltip {
+            opacity: 1;
+            transform: translateY(-12px) scale(1);
+        }
+
+        /* 右侧复制按钮：从右边缘向左展开，小箭头贴右 */
+        .copy-btn .tooltip {
+            left: auto;
+            right: 0;
+            transform: translateY(-8px) scale(0.95);
+        }
+
+        .copy-btn .tooltip::after {
+            left: auto;
+            right: 10px;
+            transform: none;
+        }
+
         .copy-btn:hover .tooltip {
             opacity: 1;
-            transform: translate(-50%, -12px) scale(1);
+            transform: translateY(-12px) scale(1);
         }
 
         .tooltip::after {
