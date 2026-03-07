@@ -295,6 +295,11 @@ function getHtml(host) {
     <meta name="twitter:image" content="https://${host}/CF-Proxy_OG.png" />
     <!-- 主题初始化（防闪烁）：优先 localStorage，其次系统偏好 -->
     <script>(function () { var s = localStorage.getItem('cf-theme'); var dark = s === 'dark' || (s === null && window.matchMedia('(prefers-color-scheme:dark)').matches); if (dark) document.getElementById('htmlRoot').classList.add('dark'); })()</script>
+
+    <!-- 默认主题色（浅色模式） -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <!-- 深色模式主题色 -->
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
     <style>
         :root {
             --primary: #000000;
