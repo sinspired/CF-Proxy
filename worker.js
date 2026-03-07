@@ -380,7 +380,7 @@ function getHtml(host) {
             max-width: 640px;
             margin: 0 auto;
             text-align: center;
-            padding: 50px 24px 80px;
+            padding: 20px 24px 80px;
             animation: fadeIn 0.8s ease forwards;
             position: relative;
             z-index: 1;
@@ -798,7 +798,7 @@ function getHtml(host) {
             background: var(--primary);
             color: var(--bg);
             border: none;
-            padding: 14px 44px;
+            padding: 14px 50px;
             border-radius: 50px;
             font-size: 0.95rem;
             font-weight: 500;
@@ -946,8 +946,7 @@ function getHtml(host) {
             }
 
             .submit-btn {
-                padding: 14px 38px;
-                width: 100%;
+                padding: 14px 46px;
                 justify-content: center;
             }
 
