@@ -965,7 +965,6 @@ function getHtml(host) {
         @media (max-height: 680px) {
             body{
                 min-height: 100vh-60px;
-                min-height: 100dvh-60px;
             }
         }
     </style>
