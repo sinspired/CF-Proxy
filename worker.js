@@ -293,8 +293,8 @@ function getHtml(host) {
     <meta name="twitter:title" content="${SITE_NAME}" />
     <meta name="twitter:description" content="跨越边界，访问任意 URL。" />
     <meta name="twitter:image" content="https://${host}/CF-Proxy_OG.png" />
-    <!-- 立即读取系统偏好，防止主题闪烁 -->
-    <script>if(window.matchMedia('(prefers-color-scheme:dark)').matches)document.getElementById('htmlRoot').classList.add('dark')</script>
+    <!-- 主题初始化（防闪烁）：优先 localStorage，其次系统偏好 -->
+    <script>(function () { var s = localStorage.getItem('cf-theme'); var dark = s === 'dark' || (s === null && window.matchMedia('(prefers-color-scheme:dark)').matches); if (dark) document.getElementById('htmlRoot').classList.add('dark'); })()</script>
     <style>
         :root {
             --primary: #000000;
@@ -956,7 +956,7 @@ function getHtml(host) {
       ─ 太阳落下 / 月亮升起，完成日升月落叙事 -->
 
     <div class="globe-wrap">
-    <button class="globe-toggle" onclick="handleGlobeClick()" aria-label="切换深浅色主题（双击恢复系统主题）">
+        <button class="globe-toggle" onclick="handleGlobeClick()" aria-label="切换深浅色主题（双击恢复系统主题）">
 
         <svg id="globeSvg" viewBox="-44 -44 88 88" width="88" height="88" style="overflow:visible" aria-hidden="true">
             <defs>
@@ -1013,11 +1013,6 @@ function getHtml(host) {
             <!--  地球球体  -->
             <!-- 主圆轮廓 -->
             <circle cx="0" cy="0" r="26" class="g-globe g-globe-main" />
-
-            <!-- 纬度线：赤道 + 南北回归线（静态，衬托球体） -->
-            <line x1="-26" y1="0" x2="26" y2="0" class="g-globe g-equator" />
-            <ellipse cx="0" cy="-10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
-            <ellipse cx="0" cy="10.4" rx="23.9" ry="6.2" class="g-globe g-tropic" />
 
                 <!-- 纬度线：赤道 + 南北回归线（静态，衬托球体） -->
                 <line x1="-26" y1="0" x2="26" y2="0" class="g-globe g-equator" />
@@ -1392,7 +1387,6 @@ function getHtml(host) {
     const BACK_OPACITY = 0.06;
     function animGlobe() {
         const spd    = burstLeft > 0 ? SPEED * BURST : SPEED;
-        globeAngle  += spd;
         if (burstLeft > 0) burstLeft--;
 
         lines.forEach(line => {
