@@ -359,7 +359,7 @@ function getHtml(host) {
         }
 
         html.dark #starField {
-            opacity: 1;
+            opacity: 0.6;
         }
 
         /* 主内容区 */
@@ -1460,11 +1460,11 @@ function getHtml(host) {
         const ctx = cvs.getContext('2d');
 
         // 生成随机星点数据
-        const stars = Array.from({ length: 140 }, () => ({
+        const stars = Array.from({ length: 100 }, () => ({
             x:  Math.random(),
             y:  Math.random(),
-            r:  Math.random() * 1.4 + 0.3,
-            a:  Math.random() * 0.6 + 0.1,
+            r:  Math.random() * 1.0 + 0.25,
+            a:  Math.random() * 0.45 + 0.06,
             s: Math.random() * 0.002 + 0.001 // 随机闪烁速度
         }));
 
