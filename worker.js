@@ -295,11 +295,6 @@ function getHtml(host) {
     <meta name="twitter:image" content="https://${host}/CF-Proxy_OG.png" />
     <!-- 主题初始化（防闪烁）：优先 localStorage，其次系统偏好 -->
     <script>(function () { var s = localStorage.getItem('cf-theme'); var dark = s === 'dark' || (s === null && window.matchMedia('(prefers-color-scheme:dark)').matches); if (dark) document.getElementById('htmlRoot').classList.add('dark'); })()</script>
-
-    <!-- 默认主题色（浅色模式） -->
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-    <!-- 深色模式主题色 -->
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
     <style>
         :root {
             --primary: #000000;
@@ -1334,13 +1329,26 @@ function getHtml(host) {
     // if (initIsDark) htmlRoot.classList.add('dark');
     // else htmlRoot.classList.remove('dark');
 
+
+    function setSafariThemeColor(dark) {
+        let metaTheme = document.querySelector('meta[name="theme-color"]');
+        if (!metaTheme) {
+            metaTheme = document.createElement('meta');
+            metaTheme.setAttribute('name', 'theme-color');
+            document.head.appendChild(metaTheme);
+        }
+        metaTheme.setAttribute('content', dark ? '#000000' : '#ffffff');
+    }
+
     // 主题优先级：localStorage > 系统偏好 > 时间
     // 轨道角度与主题状态解耦：轨道永远显示真实时间，主题由用户偏好决定
     function getSystemDark() {
         return window.matchMedia('(prefers-color-scheme:dark)').matches;
     }
+
     function applyTheme(dark) {
         htmlRoot.classList.toggle('dark', dark);
+        setSafariThemeColor(dark);
     }
 
     // 初始主题（头部脚本已处理，此处仅补全 manualOffset 使轨道与主题对齐）
@@ -1427,7 +1435,14 @@ function getHtml(host) {
         requestAnimationFrame(animGlobe);
     }
     animGlobe();
-            
+
+    // 页面初始化
+    (function () {
+        var s = localStorage.getItem('cf-theme');
+        var dark = s === 'dark' || (s === null && window.matchMedia('(prefers-color-scheme:dark)').matches);
+        applyTheme(dark); // 这里会自动调用 setSafariThemeColor
+    })();
+
     // 主题切换
     // 点击叠加 180° 偏移，之后每分钟时间漂移会保持该偏移继续运行
     function toggleTheme() {
