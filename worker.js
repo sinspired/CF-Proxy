@@ -14,6 +14,21 @@ const GITHUB_HOSTS = ["api.github.com", "uploads.github.com"];
 const REDIRECT_CODES = new Set([301, 302, 303, 307, 308]);
 
 addEventListener("fetch", (event) => {
+  // 若配置了 ACCESS_KEY（wrangler secret），则强制校验调用者身份，
+  // 拒绝未携带有效密钥的请求，防止代理被匿名滥用。
+  const accessKey =
+    typeof globalThis.ACCESS_KEY === "string" ? globalThis.ACCESS_KEY.trim() : "";
+  if (accessKey) {
+    const req = event.request;
+    const provided =
+      req.headers.get("x-access-key") ||
+      new URL(req.url).searchParams.get("access_key") ||
+      "";
+    if (provided !== accessKey) {
+      event.respondWith(new Response("Unauthorized", { status: 401 }));
+      return;
+    }
+  }
   event.respondWith(handleRequest(event.request));
 });
 
