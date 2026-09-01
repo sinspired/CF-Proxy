@@ -67,6 +67,49 @@ wrangler deploy
 wrangler dev
 ```
 
+### 方式三：Cloudflare Dashboard + GitHub 自动部署
+
+直接从 GitHub 仓库自动部署 Worker 应用，自动跟随仓库更新。
+
+1. Fork 本项目
+
+在 GitHub 点击右上角 **Fork**，将仓库复制到你的账户。
+
+2. 打开 Cloudflare Dashboard
+
+访问：https://dash.cloudflare.com  
+登录你的 Cloudflare 账号。
+
+3. 进入 Workers 和 Pages
+
+左侧边栏依次点击：
+
+**构建 → 计算 → Workers 和 Pages**
+
+4. 创建应用程序
+
+点击右上角 **创建应用程序**  
+选择 **Continue with GitHub**
+
+5. 选择仓库
+
+在弹出的 GitHub 仓库列表中，选择你 Fork 的 CF-Proxy 仓库。
+
+6. 部署
+
+保持默认设置，点击 **部署**  
+Cloudflare 会自动识别仓库中的 `worker.js` 并构建为 Worker。
+
+7. 自动更新
+
+每次你在 GitHub 仓库中：
+
+- 推送代码  
+- 合并 PR  
+- 修改配置  
+
+Cloudflare 会自动重新构建并部署，无需手动操作。
+
 ## ⚙️ 高级配置
 
 ### 配置 GitHub API 加速 (可选)
